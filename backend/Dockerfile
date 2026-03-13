@@ -28,7 +28,6 @@ RUN echo 'server { \
     location ~ \.php$ { \
         include fastcgi_params; \
         fastcgi_pass 127.0.0.1:9000; \
-        fastcgi_index index.php; \
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name; \
     } \
 }' > /etc/nginx/sites-available/default
@@ -44,4 +43,6 @@ RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
 
 # 8. สั่งรันทั้ง PHP-FPM และ Nginx พร้อมกัน
 EXPOSE 80
+
+# ให้ PHP-FPM รันเป็นเบื้องหลัง (-D) และให้ Nginx รันเป็นเบื้องหน้า เพื่อให้ Container ไม่ดับ
 CMD php-fpm -D && nginx -g "daemon off;"
