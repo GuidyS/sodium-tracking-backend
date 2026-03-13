@@ -1,6 +1,5 @@
 # 1. Base Image
-FROM php:8.0-apache
-
+FROM php:8.2-apache
 # 2. ติดตั้ง System Dependencies และ Library ที่ Composer ต้องการ (unzip, git)
 RUN apt-get update && apt-get install -y \
     libpng-dev \
