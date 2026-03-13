@@ -19,7 +19,7 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # 4. ตั้งค่า Nginx ให้รัน PHP ได้ (แทนที่ไฟล์คอนฟิกเดิม)
 RUN echo 'server { \
-    listen 80; \
+    listen 8080; \
     root /var/www/html; \
     index index.php index.html; \
     location / { \
@@ -42,7 +42,7 @@ COPY ./src /var/www/html/
 RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
 
 # 8. สั่งรันทั้ง PHP-FPM และ Nginx พร้อมกัน
-EXPOSE 80
+EXPOSE 8080
 
 # ให้ PHP-FPM รันเป็นเบื้องหลัง (-D) และให้ Nginx รันเป็นเบื้องหน้า เพื่อให้ Container ไม่ดับ
-CMD service nginx start && php-fpm
+CMD service nginx start && php-fpm -F
