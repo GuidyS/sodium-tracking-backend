@@ -1,7 +1,9 @@
-# 1. Base Image
-FROM php:8.2-apache
-# 2. ติดตั้ง System Dependencies และ Library ที่ Composer ต้องการ (unzip, git)
+# 1. ใช้ Base Image ที่เป็น PHP 8.2 แบบ FPM (เสถียรและเบากว่า)
+FROM php:8.2-fpm-bullseye
+
+# 2. ติดตั้ง Nginx (Web Server แทน Apache เพื่อตัดปัญหา MPM ทิ้ง)
 RUN apt-get update && apt-get install -y \
+    nginx \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
@@ -10,38 +12,36 @@ RUN apt-get update && apt-get install -y \
     git \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install mysqli pdo pdo_mysql gd \
-    && docker-php-ext-enable mysqli \
     && rm -rf /var/lib/apt/lists/*
 
-# 3. ติดตั้ง Composer (ก๊อปปี้ตัวรันมาจาก Official Image)
+# 3. ติดตั้ง Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# 4. ตั้งค่าระบบ Apache (ล้างใหม่แล้วใช้ชุดนี้ครับ)
-RUN a2enmod rewrite \
-    && echo "ServerName localhost" >> /etc/apache2/apache2.conf \
-    # สร้างไฟล์คอนฟิกเพื่อบังคับโหลด mpm_prefork แค่ตัวเดียว
-    && echo "LoadModule mpm_prefork_module /usr/lib/apache2/modules/mod_mpm_prefork.so" > /etc/apache2/mods-available/mpm_prefork.load \
-    # สั่งลบการเชื่อมโยง (symlink) ของ mpm ตัวอื่นๆ ที่อาจติดมาใน mods-enabled
-    && find /etc/apache2/mods-enabled -name "mpm_*" -delete \
-    # บังคับเปิดใช้งานเฉพาะ prefork เท่านั้น
-    && ln -s /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load
+# 4. ตั้งค่า Nginx ให้รัน PHP ได้ (แทนที่ไฟล์คอนฟิกเดิม)
+RUN echo 'server { \
+    listen 80; \
+    root /var/www/html; \
+    index index.php index.html; \
+    location / { \
+        try_files $uri $uri/ /index.php?$query_string; \
+    } \
+    location ~ \.php$ { \
+        include fastcgi_params; \
+        fastcgi_pass 127.0.0.1:9000; \
+        fastcgi_index index.php; \
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name; \
+    } \
+}' > /etc/nginx/sites-available/default
 
 # 5. กำหนดพื้นที่ทำงาน
 WORKDIR /var/www/html
 
-# 6. Copy ไฟล์ composer.json เข้าไปก่อน (ถ้ามี) เพื่อลง Library
-# ถ้ายังไม่มีไฟล์ในเครื่อง ให้ข้ามส่วนนี้ไปก่อนได้ แล้วค่อยรันผ่าน terminal
-# COPY composer.json ./ 
-# RUN composer install --no-interaction --optimize-autoloader
-
-# 7. Copy ไฟล์โปรเจกต์ทั้งหมด
+# 6. Copy ไฟล์โปรเจกต์
 COPY ./src /var/www/html/
 
-# 8. ตั้งค่าสิทธิ์โฟลเดอร์
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html
+# 7. ตั้งค่าสิทธิ์โฟลเดอร์
+RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
 
-# เพิ่มคำสั่งรันให้ Apache ทำงานใน Foreground (สำคัญสำหรับ Cloud)
-CMD ["apache2-foreground"]
-
+# 8. สั่งรันทั้ง PHP-FPM และ Nginx พร้อมกัน
 EXPOSE 80
+CMD php-fpm -D && nginx -g "daemon off;"
