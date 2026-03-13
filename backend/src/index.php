@@ -1,18 +1,27 @@
 <?php
-    session_start();
+    // 1. ส่ง Header ทันทีที่ไฟล์ถูกเรียก
+header("Access-Control-Allow-Origin: https://sodiumtracking.vercel.app");
+header("Access-Control-Allow-Credentials: true");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, ngrok-skip-browser-warning");
 
-    // ตั้งค่า CORS (ต้องอยู่บรรทัดแรกๆ ก่อน logic อื่น)
-    header("Access-Control-Allow-Origin: https://sodiumtracking.vercel.app");
-    header("Access-Control-Allow-Credentials: true");
-    header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-    header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, ngrok-skip-browser-warning");
+// 2. ตอบกลับ OPTIONS (Preflight) ทันที
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 
-    // --- เพิ่มส่วนนี้เข้าไป ---
-    if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-        http_response_code(200);
-        exit();
-    }
+// 3. เริ่ม Session และ Require ไฟล์ตามลำดับ
+session_start();
 
+// แก้ไขจุดเสี่ยง: เช็คว่ามีไฟล์ config จริงไหมก่อนดึงมาใช้
+if (file_exists('./config/config.php')) {
+    require_once './config/config.php';
+} else {
+    header('Content-Type: application/json');
+    echo json_encode(["status" => "error", "message" => "Config file missing on server"]);
+    exit;
+}
     $page = isset($_GET['page']) ? $_GET['page'] : '';
 
     switch ($page) {
