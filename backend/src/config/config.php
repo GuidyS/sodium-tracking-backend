@@ -7,11 +7,11 @@
         public function __construct() {
             
             // แก้ไข 2: ใช้ getenv() เพื่อดึงค่าจาก Railway ถ้าไม่มีให้ใช้ค่าในเครื่อง
-            $host = getenv('DB_HOST') ?: 'db'; 
-            $port = getenv('DB_PORT') ?: '3306';
-            $dbname = getenv('DB_NAME') ?: 'sodium_tracking';
-            $username = getenv('DB_USER') ?: 'root'; 
-            $password = getenv('DB_PASS') ?: 'rootpassword1234';
+            $host = getenv('MYSQLHOST') ?: 'localhost'; 
+            $port = getenv('MYSQLPORT') ?: '3306';
+            $dbname = getenv('MYSQLDATABASE') ?: 'railway'; // ปกติ Railway ตั้งชื่อฐานข้อมูลว่า railway
+            $username = getenv('MYSQLUSER') ?: 'root'; 
+            $password = getenv('MYSQLPASSWORD') ?: ''; // ใส่รหัสผ่าน local ของคุณไว้ตรงนี้
             
 
             // นำตัวแปรมาต่อกัน
