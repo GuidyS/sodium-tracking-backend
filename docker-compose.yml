@@ -1,0 +1,58 @@
+version: '3.8'
+services:
+
+  # Frontend
+  front:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5174:5174"  # เข้าผ่าน Browser ด้วย http://localhost:5173
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    stdin_open: true # จำเป็นสำหรับ React Docker
+    tty: true
+
+
+  # Backend
+  backend:
+    container_name: sodium_tracking_backend
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+    volumes:
+      - ./backend/src:/var/www/html/
+    ports:
+      - 8888:80
+
+
+  # Database
+  db:
+    container_name: sodium_tracking_db
+    image: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword1234
+      MYSQL_DATABASE: sodium_tracking
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: root1234
+    ports:
+      - "9907:3306"
+    volumes:
+      #- ./backend/nurseproject_test.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./mysql-data:/var/lib/mysql
+
+  phpmyadmin:
+    container_name: sodium_tracking_phpmyadmin
+    image: phpmyadmin/phpmyadmin
+    ports:
+      - "8082:80"
+    restart: always
+    environment:
+      PMA_HOST: db
+    depends_on:
+      - db
+      
