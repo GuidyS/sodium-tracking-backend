@@ -2,7 +2,7 @@
     session_start();
 
     // ตั้งค่า CORS (ต้องอยู่บรรทัดแรกๆ ก่อน logic อื่น)
-    header("Access-Control-Allow-Origin: http://localhost:5174");
+    header("Access-Control-Allow-Origin: https://sodiumtracking.vercel.app");
     header("Access-Control-Allow-Credentials: true");
     header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
     header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, ngrok-skip-browser-warning");
