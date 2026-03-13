@@ -17,8 +17,10 @@ RUN apt-get update && apt-get install -y \
 # 3. ติดตั้ง Composer (ก๊อปปี้ตัวรันมาจาก Official Image)
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# 4. ตั้งค่าระบบ Apache
-RUN a2enmod rewrite \
+# 4. ตั้งค่าระบบ Apache (แก้ไขตรงนี้ครับ)
+RUN a2dismod mpm_event mpm_worker || true \
+    && a2enmod mpm_prefork \
+    && a2enmod rewrite \
     && echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
 # 5. กำหนดพื้นที่ทำงาน
@@ -35,5 +37,8 @@ COPY ./src /var/www/html/
 # 8. ตั้งค่าสิทธิ์โฟลเดอร์
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
+
+# เพิ่มคำสั่งรันให้ Apache ทำงานใน Foreground (สำคัญสำหรับ Cloud)
+CMD ["apache2-foreground"]
 
 EXPOSE 80
