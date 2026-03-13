@@ -17,11 +17,16 @@ RUN apt-get update && apt-get install -y \
 # 3. ติดตั้ง Composer (ก๊อปปี้ตัวรันมาจาก Official Image)
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# 4. ตั้งค่าระบบ Apache (แก้ไขตรงนี้ครับ)
-RUN a2dismod mpm_event mpm_worker || true \
+# 4. ตั้งค่าระบบ Apache
+RUN a2enmod rewrite \
+    && echo "ServerName localhost" >> /etc/apache2/apache2.conf \
+    # ท่าไม้ตาย: สั่งปิด mpm_event และ mpm_worker แบบถาวร 
+    # แล้วค่อยเปิด mpm_prefork (ซึ่งเป็นตัวเดียวที่รองรับ PHP)
+    && a2dismod mpm_event mpm_worker || true \
     && a2enmod mpm_prefork \
-    && a2enmod rewrite \
-    && echo "ServerName localhost" >> /etc/apache2/apache2.conf
+    # เช็คให้ชัวร์ว่าไม่มีไฟล์ขยะหลงเหลือ
+    && rm -f /etc/apache2/mods-enabled/mpm_event.* \
+    && rm -f /etc/apache2/mods-enabled/mpm_worker.*
 
 # 5. กำหนดพื้นที่ทำงาน
 WORKDIR /var/www/html
