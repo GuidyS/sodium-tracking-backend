@@ -36,7 +36,7 @@ RUN echo 'server { \
 WORKDIR /var/www/html
 
 # 6. Copy ไฟล์โปรเจกต์
-COPY ./src /var/www/html/
+COPY ./backend/src /var/www/html/
 
 # 7. ตั้งค่าสิทธิ์โฟลเดอร์
 RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
