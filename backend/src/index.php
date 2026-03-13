@@ -1,11 +1,10 @@
 <?php
-    // 1. ส่ง Header ทันทีที่ไฟล์ถูกเรียก
+// ห้ามมีเว้นวรรคหรือบรรทัดว่างก่อน <?php เด็ดขาด
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, ngrok-skip-browser-warning");
 
-// 2. ตอบกลับ OPTIONS (Preflight) ทันที
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
     exit();
