@@ -1,0 +1,21 @@
+# Docker
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Version Control
+.git
+.gitignore
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Database (กรณีคุณเอาไฟล์ SQL มาพักไว้ในโฟลเดอร์นี้)
+*.sql
+mysql-data/
+
+# Backend specific (ถ้ามี)
+.env
+composer.lock
+vendor/
