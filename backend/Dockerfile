@@ -36,7 +36,7 @@ RUN echo 'server { \
 WORKDIR /var/www/html
 
 # 6. Copy ไฟล์โปรเจกต์
-COPY ./backend/src /var/www/html/
+COPY ./src /var/www/html/
 
 # 7. ตั้งค่าสิทธิ์โฟลเดอร์
 RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
@@ -45,4 +45,4 @@ RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
 EXPOSE 80
 
 # ให้ PHP-FPM รันเป็นเบื้องหลัง (-D) และให้ Nginx รันเป็นเบื้องหน้า เพื่อให้ Container ไม่ดับ
-CMD php-fpm -D && nginx -g "daemon off;"
+CMD service nginx start && php-fpm
