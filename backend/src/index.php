@@ -10,6 +10,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit();
 }
 
+// เพิ่มส่วนนี้ก่อน session_start();
+session_set_cookie_params([
+    'lifetime' => 86400,
+    'path' => '/',
+    'domain' => '.up.railway.app', // หรือปล่อยว่างเพื่อให้เบราว์เซอร์จัดการเอง
+    'secure' => true,      // ต้องเป็น true เพราะใช้ https
+    'httponly' => true,    // ป้องกัน XSS
+    'samesite' => 'None'   // ยอมให้ Vercel ส่ง Cookie กลับมาหา Railway ได้
+]);
+
 // 3. เริ่ม Session และ Require ไฟล์ตามลำดับ
 session_start();
 
