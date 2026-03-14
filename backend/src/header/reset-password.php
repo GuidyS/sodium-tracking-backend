@@ -7,16 +7,16 @@ try {
     $data = json_decode(file_get_contents("php://input"), true);
     
     // 1. รับค่า email และรหัสผ่านใหม่จากหน้าบ้าน
-    $user_id = $data['user_id'] ?? ''; 
+    $email = $data['email'] ?? ''; 
     $new_password = $data['new_password'] ?? '';
 
-    if (empty($user_id) || empty($new_password)) {
+    if (empty($email) || empty($new_password)) {
         throw new Exception("กรุณากรอกอีเมลและรหัสผ่านใหม่ให้ครบถ้วน");
     }
 
     // 2. ตรวจสอบว่ามีอีเมลนี้อยู่ในระบบหรือไม่
-    $check_stmt = $db->prepare("SELECT user_id FROM users WHERE user_id = :user_id");
-    $check_stmt->execute([':user_id' => $user_id]);
+    $check_stmt = $db->prepare("SELECT user_id FROM users WHERE email = :email");
+    $check_stmt->execute([':email' => $email]);
     if (!$check_stmt->fetch()) {
         throw new Exception("ไม่พบอีเมลนี้ในระบบ");
     }
@@ -25,11 +25,11 @@ try {
     $password_hash = password_hash($new_password, PASSWORD_DEFAULT);
 
     // 4. อัปเดตข้อมูลในตาราง users
-    $sql = "UPDATE users SET password_hash = :password WHERE user_id = :user_id";
+    $sql = "UPDATE users SET password_hash = :password WHERE email = :email";
     $stmt = $db->prepare($sql);
     $result = $stmt->execute([
         ':password' => $password_hash,
-        ':user_id' => $user_id
+        ':email' => $email
     ]);
 
     if ($result) {
