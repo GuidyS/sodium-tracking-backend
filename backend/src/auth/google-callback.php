@@ -1,6 +1,6 @@
 <?php
-require_once './config/config.php';
-require_once 'vendor/autoload.php';
+require_once __DIR__ . '/../config/config.php'; // ถอยออกไป 1 ชั้นเพื่อหา config
+require_once __DIR__ . '/../vendor/autoload.php'; // ถอยออกไป 1 ชั้นเพื่อหา vendor
 
 try {
     $db = new Connect(); // ใช้ class Connect เหมือนใน login.php
