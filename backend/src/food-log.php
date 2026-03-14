@@ -135,7 +135,7 @@ elseif ($method === 'POST') {
         
         // เงื่อนไขวันที่: Pretest (18 มี.ค. 69), Posttest (20-31 มี.ค. 69)
         $is_valid_date = false;
-        if ($test_type === 'pre' && $current_date === '2026-03-13') $is_valid_date = true;
+        if ($test_type === 'pre' && $current_date === '2026-03-16') $is_valid_date = true;
         if ($test_type === 'post' && ($current_date >= '2026-03-20' && $current_date <= '2026-03-31')) $is_valid_date = true;
 
         if ($is_valid_date) {
