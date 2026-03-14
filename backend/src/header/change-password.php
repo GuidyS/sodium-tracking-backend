@@ -1,6 +1,5 @@
 <?php
 require_once './config/config.php';
-session_start(); // ตรวจสอบว่าได้ start session เพื่อเอา user_id หรือไม่
 
 try {
     $db = new Connect();
