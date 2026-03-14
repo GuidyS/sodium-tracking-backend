@@ -22,6 +22,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 if ($method === 'GET') {
     $action = $_GET['action'] ?? 'list';
 
+    // 1. ดึงรายการอาหาร
     if ($action === 'list') {
         $sql = "SELECT f.*, l.location_name, r.restaurant_name 
                 FROM foods f
@@ -45,6 +46,7 @@ if ($method === 'GET') {
         echo json_encode(["status" => "success", "data" => array_values($structured_data)]);
         exit;
     } 
+    // 2. ข้อมูลรายวัน (สำหรับหน้า Daily)
     elseif ($action === 'daily') {
         $sql = "SELECT li.*, f.food_name, f.sodium_mg, f.location_id, f.restaurant_id, f.food_image, dl.log_date, li.created_at 
                 FROM log_items li
@@ -57,6 +59,30 @@ if ($method === 'GET') {
         echo json_encode(["status" => "success", "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
         exit;
     }
+    // 3. ข้อมูลรายสัปดาห์ (🌟 เพิ่มเพื่อให้หน้า Weekly แสดงผล)
+    elseif ($action === 'weekly') {
+        $sql = "SELECT log_date, total_sodium_daily 
+                FROM daily_logs 
+                WHERE user_id = :uid 
+                ORDER BY log_date DESC LIMIT 7";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([':uid' => $user_id]);
+        echo json_encode(["status" => "success", "data" => array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC))]);
+        exit;
+    }
+    // 4. สถิติรายเดือน (🌟 เพิ่มเพื่อให้หน้า Stats แสดงกราฟ)
+    elseif ($action === 'stats') {
+        $sql = "SELECT DATE_FORMAT(log_date, '%b') as month, SUM(total_sodium_daily) as sodium 
+                FROM daily_logs 
+                WHERE user_id = :uid 
+                GROUP BY month 
+                ORDER BY log_date ASC";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([':uid' => $user_id]);
+        echo json_encode(["status" => "success", "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        exit;
+    }
+    // 5. ข้อมูลทั้งหมด (สำหรับปฏิทินสะสมแต้ม)
     elseif ($action === 'daily_all') {
         $sql = "SELECT li.item_id, li.created_at, f.food_name, f.sodium_mg FROM log_items li
                 JOIN daily_logs dl ON li.log_id = dl.log_id
@@ -74,10 +100,9 @@ elseif ($method === 'POST') {
 
     if ($action === 'submit_test') {
         $test_type = $data['test_type'] ?? ''; 
-        $current_time = time(); // ใช้ Timestamp ในการเช็คจะแม่นยำกว่า
+        $current_time = time(); 
         
         $is_valid = false;
-        // 🌟 ปรับช่วงเวลาให้กว้างขึ้นเพื่อรองรับการทดสอบ (13-20 มีนาคม)
         $pre_start = strtotime('2026-03-13 00:00:00');
         $pre_end = strtotime('2026-03-20 23:59:59');
         
@@ -89,7 +114,6 @@ elseif ($method === 'POST') {
             $field = 'pretest_done';
             try {
                 $db->beginTransaction();
-                // 🌟 อัปเดตทั้งสถานะและ updated_at เพื่อให้ปฏิทินแสดงดาว Real-time
                 $stmt = $db->prepare("UPDATE users SET $field = 1, updated_at = NOW(), total_points = total_points + 1 WHERE user_id = :uid AND $field = 0");
                 $stmt->execute([':uid' => $user_id]);
                 
@@ -132,6 +156,7 @@ elseif ($method === 'POST') {
             $stmt = $db->prepare("UPDATE daily_logs SET total_sodium_daily = total_sodium_daily + :sodium WHERE log_id = :lid");
             $stmt->execute([':sodium' => $total_added_sodium, ':lid' => $log_id]);
 
+            // ลอจิกแจกแต้มทุกๆ 3 รายการ
             $stmt = $db->prepare("SELECT COUNT(*) FROM log_items li JOIN daily_logs dl ON li.log_id = dl.log_id WHERE dl.user_id = :uid");
             $stmt->execute([':uid' => $user_id]);
             $total_items = $stmt->fetchColumn();
