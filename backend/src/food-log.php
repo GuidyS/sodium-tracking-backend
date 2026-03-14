@@ -1,13 +1,13 @@
 <?php
 require_once './config/config.php';
 
-// --- 1. อ่านข้อมูลจาก JSON Payload (สำคัญมากสำหรับ React) ---
+// --- 1. อ่านข้อมูลจาก JSON Payload ---
 $rawData = file_get_contents("php://input");
 $data = json_decode($rawData, true);
 
 $db = new Connect();
 
-// --- 2. ตรวจสอบสิทธิ์ (รองรับทั้ง Session และส่ง ID มาตรงๆ) ---
+// --- 2. ตรวจสอบสิทธิ์ ---
 $user_id = $_SESSION['user_id'] ?? $data['user_id'] ?? null;
 
 if (!$user_id) {
@@ -107,7 +107,6 @@ elseif ($method === 'POST') {
         $test_type = $data['test_type'] ?? ''; 
         $current_date = date('Y-m-d');
         
-        // ขยายช่วงเวลา Pretest ให้ครอบคลุมการทดสอบ (13-16 มี.ค.)
         $is_valid_date = false;
         if ($test_type === 'pre' && ($current_date >= '2026-03-13' && $current_date <= '2026-03-16')) $is_valid_date = true;
         if ($test_type === 'post' && ($current_date >= '2026-03-20' && $current_date <= '2026-03-31')) $is_valid_date = true;
@@ -123,12 +122,12 @@ elseif ($method === 'POST') {
                 echo json_encode(["status" => "error", "message" => "คุณเคยรับแต้มส่วนนี้ไปแล้ว"]);
             }
         } else {
-            echo json_encode(["status" => "error", "message" => "ไม่อยู่ในช่วงเวลาที่กำหนด (วันที่ Server: $current_date)"]);
+            echo json_encode(["status" => "error", "message" => "ไม่อยู่ในช่วงเวลาที่กำหนด"]);
         }
         exit;
     }
 
-    // ✅ กรณีที่ 2: บันทึกรายการอาหาร
+    // ✅ กรณีที่ 2: บันทึกรายการอาหาร (แก้ไขส่วนอัปเดตยอดโซเดียม)
     elseif ($action === 'save_food') {
         $selected_foods = $data['foods'] ?? [];
         $meal_type = $data['meal_type'] ?? 'breakfast';
@@ -136,16 +135,26 @@ elseif ($method === 'POST') {
 
         try {
             $db->beginTransaction();
+            
+            // 1. สร้างหรือดึง Log ID ของวันนี้
             $stmt = $db->prepare("INSERT INTO daily_logs (user_id, log_date) VALUES (:uid, :date) ON DUPLICATE KEY UPDATE log_id=LAST_INSERT_ID(log_id)");
             $stmt->execute([':uid' => $user_id, ':date' => $log_date]);
             $log_id = $db->lastInsertId();
 
+            $total_added_sodium = 0; // ตัวแปรเก็บยอดโซเดียมที่เพิ่มในครั้งนี้
+
+            // 2. บันทึกรายการอาหารลง log_items
             foreach ($selected_foods as $food) {
                 $stmt = $db->prepare("INSERT INTO log_items (log_id, food_id, quantity, meal_type) VALUES (:lid, :fid, 1, :mtype)");
                 $stmt->execute([':lid' => $log_id, ':fid' => $food['food_id'], ':mtype' => $meal_type]);
+                $total_added_sodium += $food['sodium_mg']; // สะสมค่าโซเดียม
             }
 
-            // ให้แต้มทุก 3 รายการ
+            // 🌟 3. อัปเดตยอดรวมโซเดียมสะสมใน daily_logs (นี่คือจุดที่หายไป!)
+            $stmt = $db->prepare("UPDATE daily_logs SET total_sodium_daily = total_sodium_daily + :sodium WHERE log_id = :lid");
+            $stmt->execute([':sodium' => $total_added_sodium, ':lid' => $log_id]);
+
+            // 4. ให้แต้มทุก 3 รายการ
             $stmt = $db->prepare("SELECT COUNT(*) FROM log_items li JOIN daily_logs dl ON li.log_id = dl.log_id WHERE dl.user_id = :uid");
             $stmt->execute([':uid' => $user_id]);
             $total_items = $stmt->fetchColumn();
