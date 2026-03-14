@@ -71,23 +71,17 @@ if ($method === 'GET') {
         exit;
     }
     // 4. สถิติรายเดือน (🌟 เพิ่มเพื่อให้หน้า Stats แสดงกราฟ)
-    elseif ($action === 'stats') {
-        // 🌟 SQL นี้จะรวมโซเดียมแยกตามเดือนของ User คนนั้นๆ
+   elseif ($action === 'stats') {
+        // 🌟 ดึงข้อมูลสรุปรายเดือน โดยเช็ค user_id ให้ตรงกับคนที่ Login
         $sql = "SELECT 
                     DATE_FORMAT(log_date, '%b') as month, 
                     SUM(total_sodium_daily) as sodium 
                 FROM daily_logs 
                 WHERE user_id = :uid 
-                GROUP BY YEAR(log_date), MONTH(log_date)
-                ORDER BY log_date ASC";
+                GROUP BY month";
         $stmt = $db->prepare($sql);
-        $stmt->execute([':uid' => $user_id]);
+        $stmt->execute([':uid' => $user_id]); // $user_id ตัวนี้ต้องตรงกับในตาราง
         $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        // ถ้าไม่มีข้อมูล ให้ส่งค่า 0 กลับไปเพื่อให้หน้าจอไม่ค้าง
-        if (empty($data)) {
-            $data = [["month" => date('M'), "sodium" => 0]];
-        }
         
         echo json_encode(["status" => "success", "data" => $data]);
         exit;
