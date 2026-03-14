@@ -72,14 +72,24 @@ if ($method === 'GET') {
     }
     // 4. สถิติรายเดือน (🌟 เพิ่มเพื่อให้หน้า Stats แสดงกราฟ)
     elseif ($action === 'stats') {
-        $sql = "SELECT DATE_FORMAT(log_date, '%b') as month, SUM(total_sodium_daily) as sodium 
+        // 🌟 SQL นี้จะรวมโซเดียมแยกตามเดือนของ User คนนั้นๆ
+        $sql = "SELECT 
+                    DATE_FORMAT(log_date, '%b') as month, 
+                    SUM(total_sodium_daily) as sodium 
                 FROM daily_logs 
                 WHERE user_id = :uid 
-                GROUP BY month 
+                GROUP BY YEAR(log_date), MONTH(log_date)
                 ORDER BY log_date ASC";
         $stmt = $db->prepare($sql);
         $stmt->execute([':uid' => $user_id]);
-        echo json_encode(["status" => "success", "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // ถ้าไม่มีข้อมูล ให้ส่งค่า 0 กลับไปเพื่อให้หน้าจอไม่ค้าง
+        if (empty($data)) {
+            $data = [["month" => date('M'), "sodium" => 0]];
+        }
+        
+        echo json_encode(["status" => "success", "data" => $data]);
         exit;
     }
     // 5. ข้อมูลทั้งหมด (สำหรับปฏิทินสะสมแต้ม)
