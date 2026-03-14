@@ -102,6 +102,10 @@ switch ($page) {
         require_once 'header/reset-password.php';
         break;
 
+    case 'change-password':
+        require_once 'header/change-password.php';
+        break;
+
     case 'food-log':
         require_once 'food-log.php';
         break;
