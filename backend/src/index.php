@@ -1,5 +1,4 @@
 <?php
-// ห้ามมีเว้นวรรคหรือบรรทัดว่างก่อน <?php เด็ดขาด
 header("Access-Control-Allow-Origin: https://sodiumtracking.vercel.app");
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
