@@ -55,11 +55,13 @@ try {
             "user_role" => $userRole
         ]));
 
-        // ✅ เพิ่มบรรทัดนี้ เพื่อส่งผู้ใช้กลับไปที่ React พร้อมข้อมูล
-        header("Location: http://localhost:5174/splash?user=" . $userData);
+        // ✅ เปลี่ยนจาก localhost เป็น Vercel URL
+        header("Location: https://sodiumtracking.vercel.app/splash?user=" . $userData);
         exit;
     }
 } catch (Exception $e) {
-    echo "Error: " . $e->getMessage();
+    // ใน production แนะนำให้ส่งกลับไปหน้า login พร้อม error message
+    header("Location: https://sodiumtracking.vercel.app/login?error=" . urlencode($e->getMessage()));
+    exit;
 }
 ?>
