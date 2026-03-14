@@ -1,5 +1,5 @@
 <?php
-// 🌟 ตั้งค่า Timezone ให้ตรงกับประเทศไทย (สำคัญมากสำหรับเงื่อนไขวันที่)
+// 🌟 ตั้งค่า Timezone ให้ตรงกับประเทศไทย
 date_default_timezone_set('Asia/Bangkok');
 
 require_once './config/config.php';
@@ -10,7 +10,7 @@ $data = json_decode($rawData, true);
 
 $db = new Connect();
 
-// --- 2. ตรวจสอบสิทธิ์ (รองรับทั้ง Session และส่ง ID มาตรงๆ จาก React) ---
+// --- 2. ตรวจสอบสิทธิ์ ---
 $user_id = $_SESSION['user_id'] ?? $data['user_id'] ?? $_GET['user_id'] ?? null;
 
 if (!$user_id) {
@@ -78,7 +78,6 @@ if ($method === 'GET') {
 
     // 3. ดึงข้อมูลรายสัปดาห์ (Weekly)
     elseif ($action === 'weekly') {
-        // ดึงข้อมูล 7 วันล่าสุดของผู้ใช้
         $sql = "SELECT log_date, total_sodium_daily 
                 FROM daily_logs 
                 WHERE user_id = :uid 
@@ -87,6 +86,23 @@ if ($method === 'GET') {
         $stmt = $db->prepare($sql);
         $stmt->execute([':uid' => $user_id]);
         echo json_encode(["status" => "success", "data" => array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC))]);
+        exit;
+    }
+
+    // 🌟 4. ดึงรายการอาหารทั้งหมดของผู้ใช้ (เพื่อใช้ในหน้าปฏิทินสะสมแต้ม)
+    elseif ($action === 'daily_all') {
+        $sql = "SELECT li.item_id, li.created_at, f.food_name, f.sodium_mg 
+                FROM log_items li
+                JOIN daily_logs dl ON li.log_id = dl.log_id
+                JOIN foods f ON li.food_id = f.food_id
+                WHERE dl.user_id = :uid 
+                ORDER BY li.created_at ASC";
+        
+        $stmt = $db->prepare($sql);
+        $stmt->execute([':uid' => $user_id]);
+        $all_logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        echo json_encode(["status" => "success", "data" => $all_logs]);
         exit;
     }
 } 
@@ -100,14 +116,12 @@ elseif ($method === 'POST') {
         $current_date = date('Y-m-d');
         
         $is_valid_date = false;
-        // 🌟 ขยายช่วงเวลา Pretest ให้ยืดหยุ่นสำหรับการทดสอบ
         if ($test_type === 'pre' && ($current_date >= '2026-03-13' && $current_date <= '2026-03-18')) $is_valid_date = true;
         if ($test_type === 'post' && ($current_date >= '2026-03-20' && $current_date <= '2026-03-31')) $is_valid_date = true;
 
         if ($is_valid_date) {
             $field = ($test_type === 'pre') ? 'pretest_done' : 'posttest_done';
             
-            // ใช้ Transaction เพื่อความปลอดภัย
             try {
                 $db->beginTransaction();
                 $stmt = $db->prepare("UPDATE users SET $field = 1, total_points = total_points + 1 WHERE user_id = :uid AND $field = 0");
@@ -144,30 +158,25 @@ elseif ($method === 'POST') {
         try {
             $db->beginTransaction();
             
-            // 1. สร้างหรือดึง Log ID ของวันนี้
             $stmt = $db->prepare("INSERT INTO daily_logs (user_id, log_date) VALUES (:uid, :date) ON DUPLICATE KEY UPDATE log_id=LAST_INSERT_ID(log_id)");
             $stmt->execute([':uid' => $user_id, ':date' => $log_date]);
             $log_id = $db->lastInsertId();
 
             $total_added_sodium = 0;
 
-            // 2. บันทึกรายการอาหารลง log_items
             foreach ($selected_foods as $food) {
                 $stmt = $db->prepare("INSERT INTO log_items (log_id, food_id, quantity, meal_type) VALUES (:lid, :fid, 1, :mtype)");
                 $stmt->execute([':lid' => $log_id, ':fid' => $food['food_id'], ':mtype' => $meal_type]);
                 $total_added_sodium += $food['sodium_mg'];
             }
 
-            // 3. อัปเดตยอดรวมโซเดียมสะสมใน daily_logs
             $stmt = $db->prepare("UPDATE daily_logs SET total_sodium_daily = total_sodium_daily + :sodium WHERE log_id = :lid");
             $stmt->execute([':sodium' => $total_added_sodium, ':lid' => $log_id]);
 
-            // 4. คำนวณแต้ม: ทุกๆ 3 รายการอาหาร จะได้รับ 1 แต้ม
             $stmt = $db->prepare("SELECT COUNT(*) FROM log_items li JOIN daily_logs dl ON li.log_id = dl.log_id WHERE dl.user_id = :uid");
             $stmt->execute([':uid' => $user_id]);
             $total_items = $stmt->fetchColumn();
 
-            // ตรวจสอบว่าครบรอบ 3 รายการหรือไม่
             if ($total_items > 0 && $total_items % 3 === 0) {
                 $stmt = $db->prepare("UPDATE users SET total_points = total_points + 1 WHERE user_id = :uid");
                 $stmt->execute([':uid' => $user_id]);
