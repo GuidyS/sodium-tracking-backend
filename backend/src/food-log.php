@@ -160,12 +160,13 @@ elseif ($method === 'POST') {
             $stmt = $db->prepare("UPDATE daily_logs SET total_sodium_daily = total_sodium_daily + :sodium WHERE log_id = :lid");
             $stmt->execute([':sodium' => $total_added_sodium, ':lid' => $log_id]);
 
-            // ลอจิกแจกแต้มทุกๆ 3 รายการ
-            $stmt = $db->prepare("SELECT COUNT(*) FROM log_items li JOIN daily_logs dl ON li.log_id = dl.log_id WHERE dl.user_id = :uid");
+            // ลอจิกแจกแต้มทุกๆ 3 วัน
+            $stmt = $db->prepare("SELECT COUNT(DISTINCT log_date) FROM daily_logs WHERE user_id = :uid AND total_sodium_daily > 0");
             $stmt->execute([':uid' => $user_id]);
-            $total_items = $stmt->fetchColumn();
-
-            if ($total_items > 0 && $total_items % 3 === 0) {
+            $distinct_days = $stmt->fetchColumn();
+            
+            if ($distinct_days > 0 && $distinct_days % 3 === 0) {
+                // ตรวจสอบก่อนว่าวันนี้เคยให้แต้มไปหรือยังเพื่อป้องกันแต้มซ้ำในวันเดียวกัน
                 $stmt = $db->prepare("UPDATE users SET total_points = total_points + 1 WHERE user_id = :uid");
                 $stmt->execute([':uid' => $user_id]);
             }
