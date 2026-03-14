@@ -47,23 +47,20 @@ if ($method === 'GET') {
         exit;
     } 
     // 2. ข้อมูลรายวัน (สำหรับหน้า Daily)
-    elseif ($action === 'daily') {
-    // แก้ไข SQL: เอา "AND dl.log_date = CURDATE()" ออก 
-    // และเพิ่ม ORDER BY dl.log_date DESC เพื่อให้เอาวันล่าสุดขึ้นก่อน
-    $sql = "SELECT li.*, f.food_name, f.food_image, f.sodium_mg, f.location_id, f.restaurant_id, dl.log_date, li.created_at, li.meal_type
-            FROM log_items li
-            JOIN daily_logs dl ON li.log_id = dl.log_id
-            JOIN foods f ON li.food_id = f.food_id
-            WHERE dl.user_id = :uid
-            ORDER BY li.created_at DESC"; // เรียงตามเวลาที่บันทึก ล่าสุดอยู่บน
+    elseif ($action === 'daily_all') {
+        // 🌟 เพิ่ม dl.log_date และ dl.total_sodium_daily ใน SELECT
+        $sql = "SELECT li.item_id, li.created_at, dl.log_date, dl.total_sodium_daily, f.food_name, f.sodium_mg 
+                FROM log_items li
+                JOIN daily_logs dl ON li.log_id = dl.log_id
+                JOIN foods f ON li.food_id = f.food_id
+                WHERE dl.user_id = :uid 
+                ORDER BY li.created_at ASC";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([':uid' => $user_id]);
+        echo json_encode(["status" => "success", "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        exit;
+    }
     
-    $stmt = $db->prepare($sql);
-    $stmt->execute([':uid' => $user_id]);
-    $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    echo json_encode(["status" => "success", "data" => $items]);
-    exit;
-}
     // 3. ข้อมูลรายสัปดาห์ (🌟 เพิ่มเพื่อให้หน้า Weekly แสดงผล)
     elseif ($action === 'weekly') {
         $sql = "SELECT log_date, total_sodium_daily 
