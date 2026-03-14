@@ -47,14 +47,14 @@ if ($method === 'GET') {
         exit;
     } 
     // 2. ข้อมูลรายวัน (สำหรับหน้า Daily)
-    elseif ($action === 'daily_all') {
-        // 🌟 เพิ่ม dl.log_date และ dl.total_sodium_daily ใน SELECT
-        $sql = "SELECT li.item_id, li.created_at, dl.log_date, dl.total_sodium_daily, f.food_name, f.sodium_mg 
+    elseif ($action === 'daily') {
+        // ลบเงื่อนไข AND dl.log_date = CURDATE() ออก เพื่อให้ดึงข้อมูลทุกวันมาแสดง
+        $sql = "SELECT li.*, f.food_name, f.sodium_mg, dl.log_date 
                 FROM log_items li
                 JOIN daily_logs dl ON li.log_id = dl.log_id
                 JOIN foods f ON li.food_id = f.food_id
                 WHERE dl.user_id = :uid 
-                ORDER BY li.created_at ASC";
+                ORDER BY dl.log_date DESC, li.created_at DESC"; // เรียงตามวันที่ล่าสุด
         $stmt = $db->prepare($sql);
         $stmt->execute([':uid' => $user_id]);
         echo json_encode(["status" => "success", "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
@@ -90,10 +90,13 @@ if ($method === 'GET') {
     }
     // 5. ข้อมูลทั้งหมด (สำหรับปฏิทินสะสมแต้ม)
     elseif ($action === 'daily_all') {
-        $sql = "SELECT li.item_id, li.created_at, f.food_name, f.sodium_mg FROM log_items li
+        // 🌟 เพิ่ม dl.log_date และ dl.total_sodium_daily ใน SELECT
+        $sql = "SELECT li.item_id, li.created_at, dl.log_date, dl.total_sodium_daily, f.food_name, f.sodium_mg 
+                FROM log_items li
                 JOIN daily_logs dl ON li.log_id = dl.log_id
                 JOIN foods f ON li.food_id = f.food_id
-                WHERE dl.user_id = :uid ORDER BY li.created_at ASC";
+                WHERE dl.user_id = :uid 
+                ORDER BY li.created_at ASC";
         $stmt = $db->prepare($sql);
         $stmt->execute([':uid' => $user_id]);
         echo json_encode(["status" => "success", "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
