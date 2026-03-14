@@ -1,4 +1,7 @@
 <?php
+// 🌟 ตั้งค่า Timezone ให้ตรงกับประเทศไทย (สำคัญมากสำหรับเงื่อนไขวันที่)
+date_default_timezone_set('Asia/Bangkok');
+
 require_once './config/config.php';
 
 // --- 1. อ่านข้อมูลจาก JSON Payload ---
@@ -7,8 +10,8 @@ $data = json_decode($rawData, true);
 
 $db = new Connect();
 
-// --- 2. ตรวจสอบสิทธิ์ ---
-$user_id = $_SESSION['user_id'] ?? $data['user_id'] ?? null;
+// --- 2. ตรวจสอบสิทธิ์ (รองรับทั้ง Session และส่ง ID มาตรงๆ จาก React) ---
+$user_id = $_SESSION['user_id'] ?? $data['user_id'] ?? $_GET['user_id'] ?? null;
 
 if (!$user_id) {
     http_response_code(401);
@@ -65,7 +68,7 @@ if ($method === 'GET') {
                 JOIN daily_logs dl ON li.log_id = dl.log_id
                 JOIN foods f ON li.food_id = f.food_id
                 WHERE dl.user_id = :uid 
-                AND dl.log_date >= DATE_SUB(CURDATE(), INTERVAL 1 DAY) 
+                AND dl.log_date = CURDATE() 
                 ORDER BY li.created_at DESC";
         $stmt = $db->prepare($sql);
         $stmt->execute([':uid' => $user_id]);
@@ -75,26 +78,15 @@ if ($method === 'GET') {
 
     // 3. ดึงข้อมูลรายสัปดาห์ (Weekly)
     elseif ($action === 'weekly') {
+        // ดึงข้อมูล 7 วันล่าสุดของผู้ใช้
         $sql = "SELECT log_date, total_sodium_daily 
                 FROM daily_logs 
                 WHERE user_id = :uid 
-                ORDER BY log_date DESC LIMIT 7";
+                AND log_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+                ORDER BY log_date DESC";
         $stmt = $db->prepare($sql);
         $stmt->execute([':uid' => $user_id]);
         echo json_encode(["status" => "success", "data" => array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC))]);
-        exit;
-    }
-
-    // 4. ดึงสถิติรายเดือน (Stats)
-    elseif ($action === 'stats') {
-        $sql = "SELECT DATE_FORMAT(log_date, '%M') as month, SUM(total_sodium_daily) as sodium 
-                FROM daily_logs 
-                WHERE user_id = :uid 
-                GROUP BY month, DATE_FORMAT(log_date, '%Y-%m')
-                ORDER BY DATE_FORMAT(log_date, '%Y-%m') ASC";
-        $stmt = $db->prepare($sql);
-        $stmt->execute([':uid' => $user_id]);
-        echo json_encode(["status" => "success", "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
         exit;
     }
 } 
@@ -108,30 +100,46 @@ elseif ($method === 'POST') {
         $current_date = date('Y-m-d');
         
         $is_valid_date = false;
-        if ($test_type === 'pre' && ($current_date >= '2026-03-13' && $current_date <= '2026-03-16')) $is_valid_date = true;
+        // 🌟 ขยายช่วงเวลา Pretest ให้ยืดหยุ่นสำหรับการทดสอบ
+        if ($test_type === 'pre' && ($current_date >= '2026-03-13' && $current_date <= '2026-03-18')) $is_valid_date = true;
         if ($test_type === 'post' && ($current_date >= '2026-03-20' && $current_date <= '2026-03-31')) $is_valid_date = true;
 
         if ($is_valid_date) {
             $field = ($test_type === 'pre') ? 'pretest_done' : 'posttest_done';
-            $stmt = $db->prepare("UPDATE users SET $field = 1, total_points = total_points + 1 WHERE user_id = :uid AND $field = 0");
-            $stmt->execute([':uid' => $user_id]);
             
-            if ($stmt->rowCount() > 0) {
-                echo json_encode(["status" => "success", "message" => "ได้รับ 1 แต้มเรียบร้อยแล้ว"]);
-            } else {
-                echo json_encode(["status" => "error", "message" => "คุณเคยรับแต้มส่วนนี้ไปแล้ว"]);
+            // ใช้ Transaction เพื่อความปลอดภัย
+            try {
+                $db->beginTransaction();
+                $stmt = $db->prepare("UPDATE users SET $field = 1, total_points = total_points + 1 WHERE user_id = :uid AND $field = 0");
+                $stmt->execute([':uid' => $user_id]);
+                
+                if ($stmt->rowCount() > 0) {
+                    $db->commit();
+                    echo json_encode(["status" => "success", "message" => "ได้รับ 1 แต้มเรียบร้อยแล้ว"]);
+                } else {
+                    $db->rollBack();
+                    echo json_encode(["status" => "error", "message" => "คุณเคยรับแต้มส่วนนี้ไปแล้ว หรือข้อมูลไม่ถูกต้อง"]);
+                }
+            } catch (Exception $e) {
+                $db->rollBack();
+                echo json_encode(["status" => "error", "message" => "Database Error"]);
             }
         } else {
-            echo json_encode(["status" => "error", "message" => "ไม่อยู่ในช่วงเวลาที่กำหนด"]);
+            echo json_encode(["status" => "error", "message" => "ไม่อยู่ในช่วงเวลาที่กำหนด (Server Date: $current_date)"]);
         }
         exit;
     }
 
-    // ✅ กรณีที่ 2: บันทึกรายการอาหาร (แก้ไขส่วนอัปเดตยอดโซเดียม)
+    // ✅ กรณีที่ 2: บันทึกรายการอาหาร
     elseif ($action === 'save_food') {
         $selected_foods = $data['foods'] ?? [];
         $meal_type = $data['meal_type'] ?? 'breakfast';
         $log_date = date('Y-m-d');
+
+        if (empty($selected_foods)) {
+            echo json_encode(["status" => "error", "message" => "กรุณาเลือกอาหาร"]);
+            exit;
+        }
 
         try {
             $db->beginTransaction();
@@ -141,24 +149,25 @@ elseif ($method === 'POST') {
             $stmt->execute([':uid' => $user_id, ':date' => $log_date]);
             $log_id = $db->lastInsertId();
 
-            $total_added_sodium = 0; // ตัวแปรเก็บยอดโซเดียมที่เพิ่มในครั้งนี้
+            $total_added_sodium = 0;
 
             // 2. บันทึกรายการอาหารลง log_items
             foreach ($selected_foods as $food) {
                 $stmt = $db->prepare("INSERT INTO log_items (log_id, food_id, quantity, meal_type) VALUES (:lid, :fid, 1, :mtype)");
                 $stmt->execute([':lid' => $log_id, ':fid' => $food['food_id'], ':mtype' => $meal_type]);
-                $total_added_sodium += $food['sodium_mg']; // สะสมค่าโซเดียม
+                $total_added_sodium += $food['sodium_mg'];
             }
 
-            // 🌟 3. อัปเดตยอดรวมโซเดียมสะสมใน daily_logs (นี่คือจุดที่หายไป!)
+            // 3. อัปเดตยอดรวมโซเดียมสะสมใน daily_logs
             $stmt = $db->prepare("UPDATE daily_logs SET total_sodium_daily = total_sodium_daily + :sodium WHERE log_id = :lid");
             $stmt->execute([':sodium' => $total_added_sodium, ':lid' => $log_id]);
 
-            // 4. ให้แต้มทุก 3 รายการ
+            // 4. คำนวณแต้ม: ทุกๆ 3 รายการอาหาร จะได้รับ 1 แต้ม
             $stmt = $db->prepare("SELECT COUNT(*) FROM log_items li JOIN daily_logs dl ON li.log_id = dl.log_id WHERE dl.user_id = :uid");
             $stmt->execute([':uid' => $user_id]);
             $total_items = $stmt->fetchColumn();
 
+            // ตรวจสอบว่าครบรอบ 3 รายการหรือไม่
             if ($total_items > 0 && $total_items % 3 === 0) {
                 $stmt = $db->prepare("UPDATE users SET total_points = total_points + 1 WHERE user_id = :uid");
                 $stmt->execute([':uid' => $user_id]);
@@ -168,7 +177,7 @@ elseif ($method === 'POST') {
             echo json_encode(["status" => "success", "message" => "บันทึกเรียบร้อย"]);
         } catch (Exception $e) {
             $db->rollBack();
-            echo json_encode(["status" => "error", "message" => $e->getMessage()]);
+            echo json_encode(["status" => "error", "message" => "เกิดข้อผิดพลาด: " . $e->getMessage()]);
         }
         exit;
     }
