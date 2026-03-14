@@ -1,6 +1,10 @@
 <?php
 require_once './config/config.php';
 
+// --- เพิ่มส่วนนี้เพื่ออ่าน JSON ---
+$rawData = file_get_contents("php://input");
+$data = json_decode($rawData, true);
+
 $db = new Connect();
 
 $user_id = $_SESSION['user_id'] ?? null;
