@@ -35,14 +35,18 @@ RUN echo 'server { \
 # 5. กำหนดพื้นที่ทำงาน
 WORKDIR /var/www/html
 
-# 6. Copy ไฟล์โปรเจกต์
+# 6. Copy ไฟล์โปรเจกต์ (รวมไฟล์ composer.json เข้าไปด้วย)
 COPY ./src /var/www/html/
 
-# 7. ตั้งค่าสิทธิ์โฟลเดอร์
+# เพิ่มขั้นตอนนี้: ติดตั้ง Library (สร้างโฟลเดอร์ vendor)
+# --no-dev เพื่อให้เบาที่สุด และ --optimize-autoloader เพื่อความเร็ว
+RUN composer install --no-interaction --no-dev --optimize-autoloader
+
+# 7. ตั้งค่าสิทธิ์โฟลเดอร์ (ต้องทำหลังติดตั้ง vendor)
 RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
 
-# 8. สั่งรันทั้ง PHP-FPM และ Nginx พร้อมกัน
+# 8. สั่งรัน
 EXPOSE 8080
 
-# ให้ PHP-FPM รันเป็นเบื้องหลัง (-D) และให้ Nginx รันเป็นเบื้องหน้า เพื่อให้ Container ไม่ดับ
+# ใช้ -F เพื่อให้ PHP-FPM รันเป็น Main Process (Foreground)
 CMD service nginx start && php-fpm -F
