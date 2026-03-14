@@ -6,38 +6,46 @@ try {
     $db = new Connect();
     $data = json_decode(file_get_contents("php://input"), true);
     
-    // 1. รับค่า email และรหัสผ่านใหม่จากหน้าบ้าน
-    $email = $data['email'] ?? ''; 
-    $new_password = $data['new_password'] ?? '';
+    // รับค่าจาก Frontend
+    $current_password = $data['currentPassword'] ?? '';
+    $new_password = $data['newPassword'] ?? '';
+    $user_id = $_SESSION['user_id'] ?? null; // ใช้ ID จาก Session
 
-    if (empty($email) || empty($new_password)) {
-        throw new Exception("กรุณากรอกอีเมลและรหัสผ่านใหม่ให้ครบถ้วน");
+    if (!$user_id) {
+        throw new Exception("กรุณาเข้าสู่ระบบก่อนทำรายการ");
     }
 
-    // 2. ตรวจสอบว่ามีอีเมลนี้อยู่ในระบบหรือไม่
-    $check_stmt = $db->prepare("SELECT user_id FROM users WHERE email = :email");
-    $check_stmt->execute([':email' => $email]);
-    if (!$check_stmt->fetch()) {
-        throw new Exception("ไม่พบอีเมลนี้ในระบบ");
+    if (empty($current_password) || empty($new_password)) {
+        throw new Exception("กรุณากรอกข้อมูลให้ครบถ้วน");
     }
 
-    // 3. เข้ารหัสรหัสผ่านใหม่ก่อนบันทึก
-    $password_hash = password_hash($new_password, PASSWORD_DEFAULT);
+    // 1. ตรวจสอบรหัสผ่านเดิมก่อน
+    $stmt = $db->prepare("SELECT password_hash FROM users WHERE user_id = :id");
+    $stmt->execute([':id' => $user_id]);
+    $user = $stmt->fetch();
 
-    // 4. อัปเดตข้อมูลในตาราง users
-    $sql = "UPDATE users SET password_hash = :password WHERE email = :email";
+    if (!$user || !password_verify($current_password, $user['password_hash'])) {
+        throw new Exception("รหัสผ่านปัจจุบันไม่ถูกต้อง");
+    }
+
+    // 2. เข้ารหัสรหัสผ่านใหม่
+    $new_password_hash = password_hash($new_password, PASSWORD_DEFAULT);
+
+    // 3. อัปเดตข้อมูล
+    $sql = "UPDATE users SET password_hash = :password WHERE user_id = :id";
     $stmt = $db->prepare($sql);
     $result = $stmt->execute([
-        ':password' => $password_hash,
-        ':email' => $email
+        ':password' => $new_password_hash,
+        ':id' => $user_id
     ]);
 
     if ($result) {
-        echo json_encode(["status" => "success", "message" => "รีเซ็ตรหัสผ่านในระบบเรียบร้อยแล้ว"]);
-    } else {
-        throw new Exception("ไม่สามารถอัปเดตรหัสผ่านได้");
+        echo json_encode(["status" => "success", "message" => "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว"]);
     }
 
+} catch (Exception $e) {
+    echo json_encode(["status" => "error", "message" => $e->getMessage()]);
+}
 } catch (Exception $e) {
     http_response_code(400);
     echo json_encode(["status" => "error", "message" => $e->getMessage()]);
