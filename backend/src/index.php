@@ -52,7 +52,10 @@ switch ($page) {
             
             if ($user) {
                 $user['is_google'] = !empty($user['google_id']); 
-                unset($user['google_id']); // ลบออกเพื่อความปลอดภัย ไม่ต้องส่ง ID จริงไป
+                unset($user['google_id']); 
+                
+                // 🌟 เพิ่มบรรทัดนี้เข้าไปครับ เพื่อส่งข้อมูลกลับไปให้ Splash.tsx
+                echo json_encode(["status" => "success", "user" => $user]); 
             } else {
                 echo json_encode(["status" => "error", "message" => "User not found"]);
             }
