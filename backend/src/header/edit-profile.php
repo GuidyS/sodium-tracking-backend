@@ -29,7 +29,8 @@ if ($method === 'GET') {
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($user) {
-        echo json_encode(["status" => "success", "data" => $user]);
+        $user['is_google'] = !empty($user['google_id']);
+        unset($user['google_id']);
     } else {
         http_response_code(404);
         echo json_encode(["status" => "error", "message" => "ไม่พบข้อมูลผู้ใช้"]);
