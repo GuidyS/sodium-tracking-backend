@@ -51,13 +51,12 @@ if ($method === 'GET') {
 
     // 🌟 2. ดึงข้อมูลรายวัน (แก้ไข: เพิ่มส่วนนี้กลับเข้ามาเพื่อให้หน้าหลัก/หน้าวันไม่ว่าง)
     elseif ($action === 'daily') {
-        $sql = "SELECT li.*, f.food_name, f.sodium_mg, dl.log_date 
-                FROM log_items li
-                JOIN daily_logs dl ON li.log_id = dl.log_id
-                JOIN foods f ON li.food_id = f.food_id
-                WHERE dl.user_id = :uid 
-                AND dl.log_date = CURDATE()
-                ORDER BY li.created_at DESC";
+$sql = "SELECT li.*, f.food_name, f.sodium_mg, dl.log_date, li.created_at, li.meal_type
+            FROM log_items li
+            JOIN daily_logs dl ON li.log_id = dl.log_id
+            JOIN foods f ON li.food_id = f.food_id
+            WHERE dl.user_id = :uid 
+            ORDER BY dl.log_date DESC, li.created_at DESC";
         $stmt = $db->prepare($sql);
         $stmt->execute([':uid' => $user_id]);
         echo json_encode(["status" => "success", "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
