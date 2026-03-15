@@ -9,7 +9,6 @@ $db = new Connect();
 // 🌟 1. รับข้อมูลที่ React ส่งมาทาง Body (POST)
 $rawData = file_get_contents("php://input");
 $inputData = json_decode($rawData, true) ?: [];
-$is_google = !empty($user['google_id']); // ถ้ามี google_id จะได้ค่า true
 
 // 🌟 2. ดึง user_id แบบครอบคลุม (แก้ปัญหา Session หลุดบนมือถือ)
 $user_id = $_SESSION['user_id'] ?? $_GET['user_id'] ?? $inputData['user_id'] ?? null;
@@ -24,13 +23,17 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
     // --- ดึงข้อมูลโปรไฟล์ ---
-    $stmt = $db->prepare("SELECT full_name, email, gender, age, weight_kg, height_cm, user_role FROM users WHERE user_id = :id");
+    // 🛠️ แก้ไข: เพิ่ม google_id เข้าไปในคำสั่ง SELECT ด้วย
+    $stmt = $db->prepare("SELECT full_name, email, gender, age, weight_kg, height_cm, user_role, google_id FROM users WHERE user_id = :id");
     $stmt->execute([':id' => $user_id]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($user) {
         $user['is_google'] = !empty($user['google_id']);
         unset($user['google_id']);
+        
+        // 🌟🌟🌟 แก้ไขหลัก: เพิ่มบรรทัดนี้ เพื่อส่งข้อมูลกลับไปให้ React 🌟🌟🌟
+        echo json_encode(["status" => "success", "data" => $user]);
     } else {
         http_response_code(404);
         echo json_encode(["status" => "error", "message" => "ไม่พบข้อมูลผู้ใช้"]);
