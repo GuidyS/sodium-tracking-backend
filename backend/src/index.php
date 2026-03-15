@@ -51,16 +51,13 @@ switch ($page) {
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($user) {
-                echo json_encode(["status" => "success", "user" => $user]); 
-                exit; 
+                echo json_encode(["status" => "success", "user" => $user]);
             } else {
                 echo json_encode(["status" => "error", "message" => "User not found"]);
-                exit;
             }
         } else {
             http_response_code(401);
             echo json_encode(["status" => "error", "message" => "Unauthorized"]);
-            exit;
         }
         break;
 
@@ -71,14 +68,10 @@ switch ($page) {
             exit;
         }
         $db = new Connect();
-        // 🌟 เพิ่ม google_id เข้าไปใน SELECT เพื่อใช้เช็คเงื่อนไข
         $stmt = $db->prepare("SELECT total_points, pretest_done, posttest_done FROM users WHERE user_id = :uid");
         $stmt->execute([':uid' => $user_id]);
         $user_data = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($user_data) {
-            echo json_encode(["status" => "success", "data" => $user_data]);
-        }
+        echo json_encode(["status" => "success", "data" => $user_data]);
         exit;
         
     case 'register':
