@@ -148,5 +148,38 @@ elseif ($method === 'POST') {
         }
         exit;
     }
+
+    elseif ($action === 'submit_test') {
+        $test_type = $data['test_type'] ?? ''; // รับค่า 'pre' หรือ 'post'
+        
+        if ($test_type === 'pre') {
+            try {
+                $db->beginTransaction();
+
+                // 1. ตรวจสอบก่อนว่า User นี้เคยทำ Pre-test ไปหรือยัง (ป้องกันการปั๊มแต้ม)
+                $stmt = $db->prepare("SELECT pretest_done FROM users WHERE user_id = :uid");
+                $stmt->execute([':uid' => $user_id]);
+                $user_status = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($user_status && (int)$user_status['pretest_done'] === 0) {
+                    // 2. อัปเดตสถานะว่าทำแบบทดสอบแล้ว และเพิ่มแต้มสะสม 1 แต้ม
+                    $stmt = $db->prepare("UPDATE users SET pretest_done = 1, total_points = total_points + 1, updated_at = NOW() WHERE user_id = :uid");
+                    $stmt->execute([':uid' => $user_id]);
+                    
+                    $db->commit();
+                    echo json_encode(["status" => "success", "message" => "บันทึกแบบทดสอบสำเร็จ! ได้รับ 1 แต้ม"]);
+                } else {
+                    $db->rollBack();
+                    echo json_encode(["status" => "error", "message" => "คุณเคยได้รับแต้มจากแบบทดสอบนี้ไปแล้ว"]);
+                }
+            } catch (Exception $e) {
+                $db->rollBack();
+                echo json_encode(["status" => "error", "message" => "Database Error: " . $e->getMessage()]);
+            }
+        } else {
+            echo json_encode(["status" => "error", "message" => "ประเภทแบบทดสอบไม่ถูกต้อง"]);
+        }
+        exit;
+    }
 }
 ?>
