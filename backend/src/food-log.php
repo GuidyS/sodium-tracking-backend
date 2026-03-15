@@ -51,7 +51,7 @@ if ($method === 'GET') {
 
     // 🌟 2. ดึงข้อมูลรายวัน (แก้ไข: เพิ่มส่วนนี้กลับเข้ามาเพื่อให้หน้าหลัก/หน้าวันไม่ว่าง)
     elseif ($action === 'daily') {
-$sql = "SELECT li.*, f.food_name, f.sodium_mg, dl.log_date, li.created_at, li.meal_type
+$sql = "SELECT li.*, f.*, dl.log_date, li.created_at, li.meal_type
             FROM log_items li
             JOIN daily_logs dl ON li.log_id = dl.log_id
             JOIN foods f ON li.food_id = f.food_id
