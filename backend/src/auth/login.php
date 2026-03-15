@@ -30,7 +30,8 @@ try {
                 "full_name" => $user['full_name'],
                 "email" => $user['email'],
                 "user_role" => $user['user_role'],
-                "pretest_done" => (int)$user['pretest_done']
+                "pretest_done" => (int)$user['pretest_done'],
+                "is_google" => false // 🌟 กำหนดเป็น false เพราะเป็นการล็อกอินปกติ
             ]
         ]);
     } else {
