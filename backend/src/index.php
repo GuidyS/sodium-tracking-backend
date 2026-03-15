@@ -51,13 +51,13 @@ switch ($page) {
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($user) {
-                // 🌟 สร้างสถานะ Google และลบข้อมูลที่ละเอียดอ่อนออก
+                // 🌟 ตรวจสอบความเป็น Google User จาก google_id ใน DB
                 $user['is_google'] = !empty($user['google_id']); 
                 unset($user['google_id']); 
-                
-                // ✅ ต้องเพิ่มบรรทัดนี้เพื่อให้ Splash.tsx ทำงานต่อได้!
+
+                // ✅ ต้องเพิ่มบรรทัดนี้เพื่อให้ข้อมูลถูกส่งกลับไปหา React
                 echo json_encode(["status" => "success", "user" => $user]); 
-                exit; // จบการทำงานทันที
+                exit; 
             } else {
                 echo json_encode(["status" => "error", "message" => "User not found"]);
                 exit;
@@ -76,16 +76,15 @@ switch ($page) {
             exit;
         }
         $db = new Connect();
-        // 🌟 แก้ไข: ดึงข้อมูลให้ครบทุกฟิลด์ที่ Profile.tsx ต้องใช้แสดงผล
-        $stmt = $db->prepare("SELECT user_id, full_name, email, gender, age, weight_kg, height_cm, user_role, total_points, pretest_done, posttest_done, google_id FROM users WHERE user_id = :uid");
+        // 🌟 เพิ่ม google_id เข้าไปใน SELECT เพื่อใช้เช็คเงื่อนไข
+        $stmt = $db->prepare("SELECT total_points, pretest_done, posttest_done, google_id FROM users WHERE user_id = :uid");
         $stmt->execute([':uid' => $user_id]);
         $user_data = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         if ($user_data) {
+            // ✅ สร้างค่า is_google เพื่อส่งให้หน้า Profile.tsx
             $user_data['is_google'] = !empty($user_data['google_id']);
             echo json_encode(["status" => "success", "data" => $user_data]);
-        } else {
-            echo json_encode(["status" => "error", "message" => "ไม่พบข้อมูลผู้ใช้"]);
         }
         exit;
         
