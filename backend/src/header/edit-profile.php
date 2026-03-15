@@ -9,6 +9,7 @@ $db = new Connect();
 // 🌟 1. รับข้อมูลที่ React ส่งมาทาง Body (POST)
 $rawData = file_get_contents("php://input");
 $inputData = json_decode($rawData, true) ?: [];
+$is_google = !empty($user['google_id']); // ถ้ามี google_id จะได้ค่า true
 
 // 🌟 2. ดึง user_id แบบครอบคลุม (แก้ปัญหา Session หลุดบนมือถือ)
 $user_id = $_SESSION['user_id'] ?? $_GET['user_id'] ?? $inputData['user_id'] ?? null;
