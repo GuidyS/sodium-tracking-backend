@@ -46,16 +46,11 @@ switch ($page) {
     case 'me':
         if ($user_id) {
             $db = new Connect();
-            $stmt = $db->prepare("SELECT user_id, full_name, email, user_role, pretest_done, posttest_done, total_points, google_id FROM users WHERE user_id = :id");
+            $stmt = $db->prepare("SELECT user_id, full_name, email, user_role, pretest_done, posttest_done, total_points FROM users WHERE user_id = :id");
             $stmt->execute([':id' => $user_id]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($user) {
-                // 🌟 ตรวจสอบความเป็น Google User จาก google_id ใน DB
-                $user['is_google'] = !empty($user['google_id']); 
-                unset($user['google_id']); 
-
-                // ✅ ต้องเพิ่มบรรทัดนี้เพื่อให้ข้อมูลถูกส่งกลับไปหา React
                 echo json_encode(["status" => "success", "user" => $user]); 
                 exit; 
             } else {
@@ -77,13 +72,11 @@ switch ($page) {
         }
         $db = new Connect();
         // 🌟 เพิ่ม google_id เข้าไปใน SELECT เพื่อใช้เช็คเงื่อนไข
-        $stmt = $db->prepare("SELECT total_points, pretest_done, posttest_done, google_id FROM users WHERE user_id = :uid");
+        $stmt = $db->prepare("SELECT total_points, pretest_done, posttest_done FROM users WHERE user_id = :uid");
         $stmt->execute([':uid' => $user_id]);
         $user_data = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($user_data) {
-            // ✅ สร้างค่า is_google เพื่อส่งให้หน้า Profile.tsx
-            $user_data['is_google'] = !empty($user_data['google_id']);
             echo json_encode(["status" => "success", "data" => $user_data]);
         }
         exit;
