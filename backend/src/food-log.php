@@ -78,19 +78,20 @@ if ($method === 'GET') {
 
     // 4. สถิติรวม (สำหรับหน้า Stats)
     elseif ($action === 'stats') {
+        // 🌟 แก้ไข SQL ให้รองรับ MySQL Strict Mode บน Railway
         $sql = "SELECT 
                     DATE_FORMAT(log_date, '%b') as month, 
                     SUM(total_sodium_daily) as sodium 
                 FROM daily_logs 
                 WHERE user_id = :uid 
-                GROUP BY YEAR(log_date), MONTH(log_date)
-                ORDER BY log_date ASC";
+                GROUP BY YEAR(log_date), MONTH(log_date), DATE_FORMAT(log_date, '%b')
+                ORDER BY YEAR(log_date) ASC, MONTH(log_date) ASC";
+        
         $stmt = $db->prepare($sql);
         $stmt->execute([':uid' => $user_id]);
         echo json_encode(["status" => "success", "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
         exit;
     }
-
     // 5. ข้อมูลทั้งหมด (สำหรับปฏิทินหน้า Points)
     elseif ($action === 'daily_all') {
         $sql = "SELECT log_date, total_sodium_daily 
