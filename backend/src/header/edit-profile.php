@@ -1,17 +1,24 @@
 <?php
-
-require_once './config/config.php';
+// ถ้าเรียกผ่าน index.php จะมีคลาส Connect อยู่แล้ว แต่ดักไว้เผื่อเรียกตรงๆ
+if (!class_exists('Connect')) {
+    require_once './config/config.php';
+}
 
 $db = new Connect();
 
-// ตรวจสอบ Session (ต้อง Login ก่อน)
-if (!isset($_SESSION['user_id'])) {
+// 🌟 1. รับข้อมูลที่ React ส่งมาทาง Body (POST)
+$rawData = file_get_contents("php://input");
+$inputData = json_decode($rawData, true) ?: [];
+
+// 🌟 2. ดึง user_id แบบครอบคลุม (แก้ปัญหา Session หลุดบนมือถือ)
+$user_id = $_SESSION['user_id'] ?? $_GET['user_id'] ?? $inputData['user_id'] ?? null;
+
+if (!$user_id) {
     http_response_code(401);
-    echo json_encode(["status" => "error", "message" => "กรุณาเข้าสู่ระบบ"]);
+    echo json_encode(["status" => "error", "message" => "กรุณาเข้าสู่ระบบ (Session Expired)"]);
     exit;
 }
 
-$user_id = $_SESSION['user_id'];
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
@@ -23,14 +30,12 @@ if ($method === 'GET') {
     if ($user) {
         echo json_encode(["status" => "success", "data" => $user]);
     } else {
+        http_response_code(404);
         echo json_encode(["status" => "error", "message" => "ไม่พบข้อมูลผู้ใช้"]);
     }
 } 
-
 elseif ($method === 'POST') {
     // --- อัปเดตข้อมูลโปรไฟล์ ---
-    $data = json_decode(file_get_contents("php://input"), true);
-    
     $sql = "UPDATE users SET 
             full_name = :full_name, 
             email = :email, 
@@ -43,17 +48,18 @@ elseif ($method === 'POST') {
     $stmt = $db->prepare($sql);
     try {
         $stmt->execute([
-            ':full_name' => $data['full_name'],
-            ':email' => $data['email'],
-            ':gender' => $data['gender'],
-            ':age' => $data['age'],
-            ':weight' => $data['weight_kg'],
-            ':height' => $data['height_cm'],
-            ':id' => $user_id
+            ':full_name' => $inputData['full_name'] ?? '',
+            ':email'     => $inputData['email'] ?? '',
+            ':gender'    => $inputData['gender'] ?? '',
+            ':age'       => $inputData['age'] ?? 0,
+            ':weight'    => $inputData['weight_kg'] ?? 0,
+            ':height'    => $inputData['height_cm'] ?? 0,
+            ':id'        => $user_id
         ]);
         echo json_encode(["status" => "success", "message" => "อัปเดตข้อมูลสำเร็จ"]);
     } catch (PDOException $e) {
-        http_response_code(400);
-        echo json_encode(["status" => "error", "message" => $e->getMessage()]);
+        http_response_code(500);
+        echo json_encode(["status" => "error", "message" => "Database Error: " . $e->getMessage()]);
     }
 }
+?>
