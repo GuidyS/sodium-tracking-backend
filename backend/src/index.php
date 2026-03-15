@@ -31,21 +31,21 @@ if (file_exists('./config/config.php')) {
     exit;
 }
 
-// 🌟 อ่านข้อมูลจาก JSON Body (สำหรับแผนสำรองกรณี Session หลุด)
+// 🌟 อ่านข้อมูลจาก JSON Body
 $rawData = file_get_contents("php://input");
 $inputData = json_decode($rawData, true);
+
+// 🌟 4. ดึง User ID ไว้เป็นส่วนกลาง (Universal User ID)
+// ลอจิกนี้จะช่วยให้มือถือทำงานได้เสถียร เพราะถ้า Session หลุด จะไปดึงจาก GET/POST แทน
+$user_id = $_SESSION['user_id'] ?? $_GET['user_id'] ?? $inputData['user_id'] ?? null;
 
 $page = isset($_GET['page']) ? $_GET['page'] : '';
 
 switch ($page) {
 
     case 'me':
-        // 🌟 เช็คสิทธิ์: ดูจาก Session ก่อน ถ้าไม่มีให้ดูจาก user_id ที่ส่งแนบมาใน GET หรือ JSON
-        $user_id = $_SESSION['user_id'] ?? $_GET['user_id'] ?? $inputData['user_id'] ?? null;
-
         if ($user_id) {
             $db = new Connect();
-            // ดึงข้อมูล User พร้อมสถานะ pretest_done
             $stmt = $db->prepare("SELECT user_id, full_name, email, user_role, pretest_done, posttest_done, total_points FROM users WHERE user_id = :id");
             $stmt->execute([':id' => $user_id]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -62,19 +62,15 @@ switch ($page) {
         break;
 
     case 'profile':
-        $db = new Connect();
-        $user_id = $_SESSION['user_id'] ?? $_GET['user_id'] ?? $inputData['user_id'] ?? null;
-        
         if (!$user_id) {
             http_response_code(401);
             echo json_encode(["status" => "error", "message" => "Unauthorized"]);
             exit;
         }
-
+        $db = new Connect();
         $stmt = $db->prepare("SELECT total_points, pretest_done, posttest_done FROM users WHERE user_id = :uid");
         $stmt->execute([':uid' => $user_id]);
         $user_data = $stmt->fetch(PDO::FETCH_ASSOC);
-
         echo json_encode(["status" => "success", "data" => $user_data]);
         exit;
         
@@ -95,18 +91,18 @@ switch ($page) {
         break;
 
     case 'edit-profile':
+        // ไฟล์นี้จะใช้ $user_id และ $inputData จากด้านบนได้ทันที
         require_once 'header/edit-profile.php';
         break;
 
     case 'reset-password':
+    case 'change-password':
+        // รวม case เพื่อความสะดวก และใช้ไฟล์เดียวกันได้
         require_once 'header/reset-password.php';
         break;
 
-    case 'change-password':
-        require_once 'header/change-password.php';
-        break;
-
     case 'food-log':
+        // ไฟล์นี้จะใช้ $user_id ได้ทันทีเพื่อดึงสถิติ
         require_once 'food-log.php';
         break;
 
