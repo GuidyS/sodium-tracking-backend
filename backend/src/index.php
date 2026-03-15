@@ -46,12 +46,13 @@ switch ($page) {
     case 'me':
         if ($user_id) {
             $db = new Connect();
-            $stmt = $db->prepare("SELECT user_id, full_name, email, user_role, pretest_done, posttest_done, total_points FROM users WHERE user_id = :id");
+            $stmt = $db->prepare("SELECT user_id, full_name, email, user_role, pretest_done, posttest_done, total_points, google_id FROM users WHERE user_id = :id");
             $stmt->execute([':id' => $user_id]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($user) {
-                echo json_encode(["status" => "success", "user" => $user]);
+                $user['is_google'] = !empty($user['google_id']); 
+                unset($user['google_id']); // ลบออกเพื่อความปลอดภัย ไม่ต้องส่ง ID จริงไป
             } else {
                 echo json_encode(["status" => "error", "message" => "User not found"]);
             }
