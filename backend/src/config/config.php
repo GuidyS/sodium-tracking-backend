@@ -40,7 +40,7 @@
     define('GOOGLE_CLIENT_ID', getenv('GOOGLE_CLIENT_ID') ?: '');
     define('GOOGLE_CLIENT_SECRET', getenv('GOOGLE_CLIENT_SECRET') ?: '');
 
-    $redirectUri = getenv('GOOGLE_REDIRECT_URI') ?: 'http://localhost:8888/index.php?page=google-callback';
+    $redirectUri = getenv('GOOGLE_REDIRECT_URI');
     define('GOOGLE_REDIRECT_URI', $redirectUri);
 
 ?>
