@@ -3,8 +3,8 @@
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT & ~E_NOTICE);
 ini_set('display_errors', 0);
 
-require_once __DIR__ . '/../config/config.php'; // ถอยออกไป 1 ชั้นเพื่อหา config
-require_once __DIR__ . '/../vendor/autoload.php'; // ถอยออกไป 1 ชั้นเพื่อหา vendor
+require_once __DIR__ . './config/config.php'; // ถอยออกไป 1 ชั้นเพื่อหา config
+require_once __DIR__ . './vendor/autoload.php'; // ถอยออกไป 1 ชั้นเพื่อหา vendor
 
 try {
     $db = new Connect(); // ใช้ class Connect เหมือนใน login.php
