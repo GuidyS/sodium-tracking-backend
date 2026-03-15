@@ -59,6 +59,7 @@ try {
             "full_name" => $userInfo->name,
             "email" => $userInfo->email,
             "user_role" => $userRole
+            "is_google" => true // 🌟 เพิ่มบรรทัดนี้เพื่อบอกหน้าบ้านว่าเป็น Google User
         ]));
 
         // ✅ เปลี่ยนจาก localhost เป็น Vercel URL
