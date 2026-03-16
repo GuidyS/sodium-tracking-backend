@@ -62,11 +62,11 @@ try {
         ]));
 
         // ✅ เปลี่ยนจาก localhost เป็น Vercel URL
-        header("Location: https://sodiumtracking.vercel.app/splash?user=" . $userData);
+        header("Location: https://desaltdena-frontend.vercel.app/splash?user=" . $userData);
         exit;
     }
 } catch (Exception $e) {
     // ใน production แนะนำให้ส่งกลับไปหน้า login พร้อม error message
-    header("Location: https://sodiumtracking.vercel.app/login?error=" . urlencode($e->getMessage()));
+    header("Location: https://desaltdena-frontend.vercel.app/login?error=" . urlencode($e->getMessage()));
     exit;
 }
