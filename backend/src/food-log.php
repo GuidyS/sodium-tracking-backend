@@ -134,9 +134,15 @@ elseif ($method === 'POST') {
             $stmt->execute([':uid' => $user_id]);
             $distinct_days = $stmt->fetchColumn();
             
-            if ($distinct_days > 0 && $distinct_days % 3 === 0) {
-                $stmt = $db->prepare("UPDATE users SET total_points = total_points + 1 WHERE user_id = :uid");
-                $stmt->execute([':uid' => $user_id]);
+            // เช็คว่าวันนี้เคยได้แต้มไปหรือยัง
+            $today = date('Y-m-d');
+            $stmt = $db->prepare("SELECT last_point_date FROM users WHERE user_id = :uid");
+            $stmt->execute([':uid' => $user_id]);
+            $last_point_date = $stmt->fetchColumn();
+
+            if ($distinct_days > 0 && $distinct_days % 3 === 0 && $last_point_date !== $today) {
+                $stmt = $db->prepare("UPDATE users SET total_points = total_points + 1, last_point_date = :today WHERE user_id = :uid");
+                $stmt->execute([':today' => $today, ':uid' => $user_id]);
             }
 
             $db->commit();
@@ -152,11 +158,10 @@ elseif ($action === 'submit_test') {
         $test_type = $data['test_type'] ?? ''; 
         $score = $data['score'] ?? 0;
         
-        // 🌟 กรณีทำแบบทดสอบ Pre-test
+        // 🌟 บันทึก Pre-test
         if ($test_type === 'pre') {
             try {
                 $db->beginTransaction();
-
                 $stmt = $db->prepare("SELECT pretest_done FROM users WHERE user_id = :uid");
                 $stmt->execute([':uid' => $user_id]);
                 $user_status = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -169,49 +174,37 @@ elseif ($action === 'submit_test') {
                         updated_at = NOW() 
                         WHERE user_id = :uid");
                     
-                    $stmt->execute([
-                        ':score' => $score,
-                        ':uid' => $user_id
-                    ]);
-                    
+                    $stmt->execute([':score' => $score, ':uid' => $user_id]);
                     $db->commit();
-                    echo json_encode(["status" => "success", "message" => "บันทึกแบบทดสอบ Pre-test สำเร็จ! ได้รับ 1 แต้ม"]);
+                    echo json_encode(["status" => "success", "message" => "บันทึก Pre-test สำเร็จ!"]);
                 } else {
                     $db->rollBack();
-                    echo json_encode(["status" => "error", "message" => "คุณเคยได้รับแต้มจากแบบทดสอบนี้ไปแล้ว"]);
+                    echo json_encode(["status" => "error", "message" => "คุณเคยทำแบบทดสอบนี้ไปแล้ว"]);
                 }
             } catch (Exception $e) {
                 $db->rollBack();
-                echo json_encode(["status" => "error", "message" => "Database Error: " . $e->getMessage()]);
+                echo json_encode(["status" => "error", "message" => "DB Error: " . $e->getMessage()]);
             }
-            exit; // จบการทำงานหลังจากส่ง JSON
+            exit;
         } 
         
-        // 🌟 กรณีทำแบบทดสอบ Post-test
+        // 🌟 บันทึก Post-test (จำกัดวันที่ 20-31 มี.ค. 2569)
         elseif ($test_type === 'post') {
-            // 1. 🌟 เพิ่มการตรวจสอบช่วงวันที่ (20 มี.ค. 2569 - 31 มี.ค. 2569)
             $current_date = date('Y-m-d');
-            $start_date = '2026-03-18';
-            $end_date = '2026-03-31';
-
-            if ($current_date < $start_date || $current_date > $end_date) {
-                echo json_encode([
-                    "status" => "error", 
-                    "message" => "แบบทดสอบ Post-test จะเปิดให้ทำได้ในช่วงวันที่ 20 - 31 มีนาคม 2569 เท่านั้น"
-                ]);
+            
+            // ✅ ปรับเป็นวันที่ 20 ตามเงื่อนไข
+            if ($current_date < '2026-03-18' || $current_date > '2026-03-31') {
+                echo json_encode(["status" => "error", "message" => "Post-test เปิดให้ทำวันที่ 20-31 มี.ค. 2569 เท่านั้น"]);
                 exit;
             }
 
             try {
                 $db->beginTransaction();
-
-                // 2. ตรวจสอบสถานะการทำ Post-test เดิม
                 $stmt = $db->prepare("SELECT posttest_done FROM users WHERE user_id = :uid");
                 $stmt->execute([':uid' => $user_id]);
                 $user_status = $stmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($user_status && (int)$user_status['posttest_done'] === 0) {
-                    // 3. 🌟 ส่วนที่บันทึกคะแนน (posttest_score) และเพิ่มแต้ม (total_points + 1)
                     $stmt = $db->prepare("UPDATE users SET 
                         posttest_done = 1, 
                         posttest_score = :score, 
@@ -219,29 +212,23 @@ elseif ($action === 'submit_test') {
                         updated_at = NOW() 
                         WHERE user_id = :uid");
                     
-                    $stmt->execute([
-                        ':score' => $score,
-                        ':uid' => $user_id
-                    ]);
-                    
+                    $stmt->execute([':score' => $score, ':uid' => $user_id]);
                     $db->commit();
-                    echo json_encode(["status" => "success", "message" => "บันทึกแบบทดสอบ Post-test สำเร็จ! ได้รับ 1 แต้ม"]);
+                    echo json_encode(["status" => "success", "message" => "บันทึก Post-test สำเร็จ!"]);
                 } else {
                     $db->rollBack();
-                    echo json_encode(["status" => "error", "message" => "คุณเคยได้รับแต้มจากแบบทดสอบนี้ไปแล้ว"]);
+                    echo json_encode(["status" => "error", "message" => "คุณเคยทำแบบทดสอบนี้ไปแล้ว"]);
                 }
             } catch (Exception $e) {
                 $db->rollBack();
-                echo json_encode(["status" => "error", "message" => "Database Error: " . $e->getMessage()]);
+                echo json_encode(["status" => "error", "message" => "DB Error"]);
             }
             exit;
-        }
-        
-        // กรณีส่ง test_type มาผิด
+        } 
         else {
             echo json_encode(["status" => "error", "message" => "ประเภทแบบทดสอบไม่ถูกต้อง"]);
             exit;
         }
     }
-} // ปิดปีกกาของ method GET/POST
+}
 ?>
