@@ -189,14 +189,29 @@ elseif ($action === 'submit_test') {
         
         // 🌟 กรณีทำแบบทดสอบ Post-test
         elseif ($test_type === 'post') {
+            // 1. 🌟 เพิ่มการตรวจสอบช่วงวันที่ (20 มี.ค. 2569 - 31 มี.ค. 2569)
+            $current_date = date('Y-m-d');
+            $start_date = '2026-03-20';
+            $end_date = '2026-03-31';
+
+            if ($current_date < $start_date || $current_date > $end_date) {
+                echo json_encode([
+                    "status" => "error", 
+                    "message" => "แบบทดสอบ Post-test จะเปิดให้ทำได้ในช่วงวันที่ 20 - 31 มีนาคม 2569 เท่านั้น"
+                ]);
+                exit;
+            }
+
             try {
                 $db->beginTransaction();
 
+                // 2. ตรวจสอบสถานะการทำ Post-test เดิม
                 $stmt = $db->prepare("SELECT posttest_done FROM users WHERE user_id = :uid");
                 $stmt->execute([':uid' => $user_id]);
                 $user_status = $stmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($user_status && (int)$user_status['posttest_done'] === 0) {
+                    // 3. 🌟 ส่วนที่บันทึกคะแนน (posttest_score) และเพิ่มแต้ม (total_points + 1)
                     $stmt = $db->prepare("UPDATE users SET 
                         posttest_done = 1, 
                         posttest_score = :score, 
@@ -220,7 +235,7 @@ elseif ($action === 'submit_test') {
                 echo json_encode(["status" => "error", "message" => "Database Error: " . $e->getMessage()]);
             }
             exit;
-        } 
+        }
         
         // กรณีส่ง test_type มาผิด
         else {
