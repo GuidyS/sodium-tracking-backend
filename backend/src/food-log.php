@@ -191,7 +191,7 @@ elseif ($action === 'submit_test') {
         elseif ($test_type === 'post') {
             // 1. 🌟 เพิ่มการตรวจสอบช่วงวันที่ (20 มี.ค. 2569 - 31 มี.ค. 2569)
             $current_date = date('Y-m-d');
-            $start_date = '2026-03-20';
+            $start_date = '2026-03-18';
             $end_date = '2026-03-31';
 
             if ($current_date < $start_date || $current_date > $end_date) {
