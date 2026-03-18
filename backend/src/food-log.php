@@ -213,5 +213,5 @@ elseif ($action === 'submit_test') {
     }
     exit;
 }
-}
+
 ?>
