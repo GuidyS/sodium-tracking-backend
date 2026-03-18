@@ -165,7 +165,7 @@ elseif ($action === 'submit_test') {
     // 🌟 3. ตรวจสอบเงื่อนไขวันที่เฉพาะ Post-test
     if ($test_type === 'post') {
         $today = date('Y-m-d H:i:s');
-        $start = "2026-03-20 00:00:00";
+        $start = "2026-03-18 00:00:00";
         $end   = "2026-03-31 23:59:59";
     
         if ($today < $start) {
