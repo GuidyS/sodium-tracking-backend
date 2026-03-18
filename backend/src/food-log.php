@@ -149,84 +149,69 @@ elseif ($method === 'POST') {
     }
 
 elseif ($action === 'submit_test') {
-        $test_type = $data['test_type'] ?? ''; 
-        $score = $data['score'] ?? 0;
-        
-        // 🌟 กรณีทำแบบทดสอบ Pre-test
-        if ($test_type === 'pre') {
-            try {
-                $db->beginTransaction();
+    $test_type = $data['test_type'] ?? ''; 
+    $score = $data['score'] ?? 0;
+    
+    // 🌟 1. ย้าย Dynamic Column มาไว้ตรงกลางเพื่อให้ใช้ได้ทั้ง Pre และ Post
+    $col_done  = ($test_type === 'post') ? 'posttest_done' : 'pretest_done';
+    $col_score = ($test_type === 'post') ? 'posttest_score' : 'pretest_score';
 
-                $stmt = $db->prepare("SELECT pretest_done FROM users WHERE user_id = :uid");
-                $stmt->execute([':uid' => $user_id]);
-                $user_status = $stmt->fetch(PDO::FETCH_ASSOC);
+    // 🌟 2. เช็คประเภทแบบทดสอบที่ถูกต้อง
+    if ($test_type !== 'pre' && $test_type !== 'post') {
+        echo json_encode(["status" => "error", "message" => "ประเภทแบบทดสอบไม่ถูกต้อง"]);
+        exit;
+    }
 
-                if ($user_status && (int)$user_status['pretest_done'] === 0) {
-                    $stmt = $db->prepare("UPDATE users SET 
-                        pretest_done = 1, 
-                        pretest_score = :score, 
-                        total_points = total_points + 1, 
-                        updated_at = NOW() 
-                        WHERE user_id = :uid");
-                    
-                    $stmt->execute([
-                        ':score' => $score,
-                        ':uid' => $user_id
-                    ]);
-                    
-                    $db->commit();
-                    echo json_encode(["status" => "success", "message" => "บันทึกแบบทดสอบ Pre-test สำเร็จ! ได้รับ 1 แต้ม"]);
-                } else {
-                    $db->rollBack();
-                    echo json_encode(["status" => "error", "message" => "คุณเคยได้รับแต้มจากแบบทดสอบนี้ไปแล้ว"]);
-                }
-            } catch (Exception $e) {
-                $db->rollBack();
-                echo json_encode(["status" => "error", "message" => "Database Error: " . $e->getMessage()]);
-            }
-            exit; // จบการทำงานหลังจากส่ง JSON
-        } 
-        
-        // 🌟 กรณีทำแบบทดสอบ Post-test
-        elseif ($test_type === 'post') {
-            try {
-                $db->beginTransaction();
-
-                $stmt = $db->prepare("SELECT posttest_done FROM users WHERE user_id = :uid");
-                $stmt->execute([':uid' => $user_id]);
-                $user_status = $stmt->fetch(PDO::FETCH_ASSOC);
-
-                if ($user_status && (int)$user_status['posttest_done'] === 0) {
-                    $stmt = $db->prepare("UPDATE users SET 
-                        posttest_done = 1, 
-                        posttest_score = :score, 
-                        total_points = total_points + 1, 
-                        updated_at = NOW() 
-                        WHERE user_id = :uid");
-                    
-                    $stmt->execute([
-                        ':score' => $score,
-                        ':uid' => $user_id
-                    ]);
-                    
-                    $db->commit();
-                    echo json_encode(["status" => "success", "message" => "บันทึกแบบทดสอบ Post-test สำเร็จ! ได้รับ 1 แต้ม"]);
-                } else {
-                    $db->rollBack();
-                    echo json_encode(["status" => "error", "message" => "คุณเคยได้รับแต้มจากแบบทดสอบนี้ไปแล้ว"]);
-                }
-            } catch (Exception $e) {
-                $db->rollBack();
-                echo json_encode(["status" => "error", "message" => "Database Error: " . $e->getMessage()]);
-            }
+    // 🌟 3. ตรวจสอบเงื่อนไขวันที่เฉพาะ Post-test
+    if ($test_type === 'post') {
+        $today = date('Y-m-d H:i:s');
+        $start = "2026-03-20 00:00:00";
+        $end   = "2026-03-31 23:59:59";
+    
+        if ($today < $start) {
+            echo json_encode(["status" => "error", "message" => "ยังไม่ถึงกำหนดเวลาทำ Post-test"]);
             exit;
-        } 
-        
-        // กรณีส่ง test_type มาผิด
-        else {
-            echo json_encode(["status" => "error", "message" => "ประเภทแบบทดสอบไม่ถูกต้อง"]);
+        }
+        if ($today > $end) {
+            echo json_encode(["status" => "error", "message" => "หมดเขตการทำ Post-test แล้ว"]);
             exit;
         }
     }
-} // ปิดปีกกาของ method GET/POST
+
+    // 🌟 4. บันทึกลง Database (ใช้ Logic เดียวกันทั้ง Pre/Post)
+    try {
+        $db->beginTransaction();
+
+        // เช็คสถานะจากคอลัมน์ที่เราเลือกมาแล้ว (Dynamic)
+        $stmt = $db->prepare("SELECT $col_done FROM users WHERE user_id = :uid");
+        $stmt->execute([':uid' => $user_id]);
+        $done_status = $stmt->fetchColumn();
+
+        if ($done_status == 0) {
+            $stmt = $db->prepare("UPDATE users SET 
+                $col_done = 1, 
+                $col_score = :score, 
+                total_points = total_points + 1, 
+                updated_at = NOW() 
+                WHERE user_id = :uid");
+            
+            $stmt->execute([
+                ':score' => $score,
+                ':uid' => $user_id
+            ]);
+            
+            $db->commit();
+            $msg = ($test_type === 'post') ? "Post-test" : "Pre-test";
+            echo json_encode(["status" => "success", "message" => "บันทึกแบบทดสอบ $msg สำเร็จ! ได้รับ 1 แต้ม"]);
+        } else {
+            $db->rollBack();
+            echo json_encode(["status" => "error", "message" => "คุณเคยได้รับแต้มจากแบบทดสอบนี้ไปแล้ว"]);
+        }
+    } catch (Exception $e) {
+        if ($db->inTransaction()) $db->rollBack();
+        echo json_encode(["status" => "error", "message" => "Database Error: " . $e->getMessage()]);
+    }
+    exit;
+}
+}
 ?>
