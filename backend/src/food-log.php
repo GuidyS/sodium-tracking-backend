@@ -135,7 +135,7 @@ elseif ($method === 'POST') {
             $distinct_days = $stmt->fetchColumn();
             
             if ($distinct_days > 0 && $distinct_days % 3 === 0) {
-                $stmt = $db->prepare("UPDATE users SET total_points = total_points + 1 WHERE user_id = :uid");
+                $stmt = $db->prepare("UPDATE users SET total_points = total_points + 1, last_point_date = NOW() WHERE user_id = :uid");
                 $stmt->execute([':uid' => $user_id]);
             }
 
@@ -179,7 +179,7 @@ elseif ($method === 'POST') {
             $done_status = $stmt->fetchColumn();
 
             if ($done_status == 0) {
-                $stmt = $db->prepare("UPDATE users SET $col_done = 1, $col_score = :score, total_points = total_points + 1, updated_at = NOW() WHERE user_id = :uid");
+                $stmt = $db->prepare("UPDATE users SET $col_done = 1, $col_score = :score, total_points = total_points + 1, last_point_date = NOW(), updated_at = NOW() WHERE user_id = :uid");
                 $stmt->execute([':score' => $score, ':uid' => $user_id]);
                 $db->commit();
                 echo json_encode(["status" => "success", "message" => "บันทึกสำเร็จ"]);
