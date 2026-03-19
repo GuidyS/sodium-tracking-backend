@@ -147,6 +147,7 @@ elseif ($method === 'POST') {
         }
         exit;
     }
+}
 
 elseif ($action === 'submit_test') {
     $test_type = $data['test_type'] ?? ''; 
