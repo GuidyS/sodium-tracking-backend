@@ -7,7 +7,7 @@ $db = new Connect();
 $user_role = $_SESSION['user_role'] ?? '';
 
 // 🌟 ตรวจสอบว่าถ้าไม่ใช่ Admin ให้เด้งออกทันที
-if ($user_role !== 'admin') {
+if ($user_role !== 'Admin') {
     http_response_code(403);
     echo json_encode(["status" => "error", "message" => "Access Denied: Admin only"]);
     exit;
