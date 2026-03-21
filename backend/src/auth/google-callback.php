@@ -35,7 +35,7 @@ try {
         if(!$user) {
             // 1. ลอจิกสำหรับผู้ใช้ใหม่
             // เปลี่ยนจาก 'admin' เป็น 'Admin' เพื่อให้ตรงกับ React
-            $role = ($userInfo->email === 'desaltdena@gmail.com') ? 'admin' : 'บุคคลทั่วไป';
+            $role = ($userInfo->email === 'ddoubleduy@gmail.com') ? 'admin' : 'บุคคลทั่วไป';
         
             $stmt = $db->prepare("INSERT INTO users (google_id, full_name, email, user_role) VALUES (:google_id, :name, :email, :role)");
             $stmt->execute([
