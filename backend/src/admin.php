@@ -4,7 +4,15 @@ session_start(); // มั่นใจว่ามี session_start เพื่
 require_once './config/config.php';
 $db = new Connect();
 
+$user_id = $_SESSION['user_id'] ?? $_GET['user_id'] ?? null;
 $user_role = $_SESSION['user_role'] ?? '';
+
+if (!$user_role && $user_id) {
+    // ถ้า Session หลุด ให้ไปเช็คใน DB จริงๆ อีกครั้ง
+    $stmt = $db->prepare("SELECT user_role FROM users WHERE user_id = ?");
+    $stmt->execute([$user_id]);
+    $user_role = $stmt->fetchColumn();
+}
 
 // 🌟 ตรวจสอบว่าถ้าไม่ใช่ Admin ให้เด้งออกทันที
 if ($user_role !== 'Admin') {
