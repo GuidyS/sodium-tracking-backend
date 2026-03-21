@@ -84,24 +84,35 @@ if ($method === 'GET') {
         $stmtAge->execute();
         $ageData = $stmtAge->fetchAll(PDO::FETCH_ASSOC);
     
-        // 🌟 เพิ่ม: ข้อมูลวิเคราะห์รายข้อ (Item Analysis) - ตัวอย่าง 8 ข้อ
-        // ในระบบจริงคุณต้อง Join กับตารางคำตอบ แต่เบื้องต้นส่งค่าเฉลี่ยไปก่อนได้ครับ
-        $itemAnalysis = [];
+        // 📊 2. สถิติปริมาณโซเดียม (เฉลี่ยรายวันของทุกคนในช่วง 30 วันล่าสุด)
+        $stmtSodium = $db->prepare("SELECT log_date as date, AVG(total_sodium_daily) as avg_sodium 
+                                    FROM daily_logs 
+                                    GROUP BY log_date 
+                                    ORDER BY log_date ASC LIMIT 30");
+        $stmtSodium->execute();
+        $sodiumTrend = $stmtSodium->fetchAll(PDO::FETCH_ASSOC);
+    
+        // 📉 3. คะแนนเปรียบเทียบ % ถูก-ผิด (ภาพรวม Pre vs Post)
+        $stmtCompare = $db->prepare("SELECT 
+            test_type,
+            AVG(is_correct) * 100 as correct_percent,
+            (1 - AVG(is_correct)) * 100 as incorrect_percent
+            FROM test_responses GROUP BY test_type");
+        $stmtCompare->execute();
+        $overallCompare = $stmtCompare->fetchAll(PDO::FETCH_ASSOC);
+    
+        // 🥧 4. แบบ Pre-test รายข้อ (ถูก/ผิด เป็น %)
+        $pretestPieData = [];
         for ($i = 1; $i <= 8; $i++) {
-            // หา % คนตอบถูกใน Pre-test ข้อนั้นๆ
-            $stmtPre = $db->prepare("SELECT (SUM(is_correct) * 100 / COUNT(*)) as rate FROM test_responses WHERE test_type = 'pre' AND question_number = ?");
-            $stmtPre->execute([$i]);
-            $preRate = $stmtPre->fetchColumn() ?: 0;
-    
-            // หา % คนตอบถูกใน Post-test ข้อนั้นๆ
-            $stmtPost = $db->prepare("SELECT (SUM(is_correct) * 100 / COUNT(*)) as rate FROM test_responses WHERE test_type = 'post' AND question_number = ?");
-            $stmtPost->execute([$i]);
-            $postRate = $stmtPost->fetchColumn() ?: 0;
-    
-            $itemAnalysis[] = [
-                "question" => "ข้อ $i",
-                "pretest" => round($preRate, 1),
-                "posttest" => round($postRate, 1)
+            $stmtPie = $db->prepare("SELECT 
+                SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) as correct,
+                SUM(CASE WHEN is_correct = 0 THEN 1 ELSE 0 END) as incorrect
+                FROM test_responses WHERE test_type = 'pre' AND question_number = ?");
+            $stmtPie->execute([$i]);
+            $row = $stmtPie->fetch(PDO::FETCH_ASSOC);
+            $pretestPieData["q$i"] = [
+                ["name" => "ถูก", "value" => (int)$row['correct']],
+                ["name" => "ผิด", "value" => (int)$row['incorrect']]
             ];
         }
     
@@ -113,7 +124,9 @@ if ($method === 'GET') {
                 "avg_posttest" => round($summary['avg_posttest'], 2),
                 "gender_data" => $genderData,
                 "age_data" => $ageData,
-                "item_analysis" => $itemAnalysis
+                "sodium_trend" => $sodiumTrend,
+                "overall_compare" => $overallCompare,
+                "pretest_pie_data" => $pretestPieData
             ]
         ]);
         exit;
