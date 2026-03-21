@@ -88,10 +88,20 @@ if ($method === 'GET') {
         // ในระบบจริงคุณต้อง Join กับตารางคำตอบ แต่เบื้องต้นส่งค่าเฉลี่ยไปก่อนได้ครับ
         $itemAnalysis = [];
         for ($i = 1; $i <= 8; $i++) {
+            // หา % คนตอบถูกใน Pre-test ข้อนั้นๆ
+            $stmtPre = $db->prepare("SELECT (SUM(is_correct) * 100 / COUNT(*)) as rate FROM test_responses WHERE test_type = 'pre' AND question_number = ?");
+            $stmtPre->execute([$i]);
+            $preRate = $stmtPre->fetchColumn() ?: 0;
+    
+            // หา % คนตอบถูกใน Post-test ข้อนั้นๆ
+            $stmtPost = $db->prepare("SELECT (SUM(is_correct) * 100 / COUNT(*)) as rate FROM test_responses WHERE test_type = 'post' AND question_number = ?");
+            $stmtPost->execute([$i]);
+            $postRate = $stmtPost->fetchColumn() ?: 0;
+    
             $itemAnalysis[] = [
                 "question" => "ข้อ $i",
-                "pretest" => rand(40, 70), // แทนที่ด้วย Query จริงในอนาคต
-                "posttest" => rand(70, 95)
+                "pretest" => round($preRate, 1),
+                "posttest" => round($postRate, 1)
             ];
         }
     
