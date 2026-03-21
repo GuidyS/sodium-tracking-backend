@@ -181,6 +181,14 @@ elseif ($method === 'POST') {
             if ($done_status == 0) {
                 $stmt = $db->prepare("UPDATE users SET $col_done = 1, $col_score = :score, total_points = total_points + 1, last_point_date = NOW(), updated_at = NOW() WHERE user_id = :uid");
                 $stmt->execute([':score' => $score, ':uid' => $user_id]);
+
+                if (!empty($results)) {
+                    $stmtRes = $db->prepare("INSERT INTO test_responses (user_id, test_type, question_number, is_correct) VALUES (?, ?, ?, ?)");
+                    foreach ($results as $res) {
+                        $stmtRes->execute([$user_id, $test_type, $res['q'], $res['correct']]);
+                    }
+                }
+                
                 $db->commit();
                 echo json_encode(["status" => "success", "message" => "บันทึกสำเร็จ"]);
             } else {
