@@ -60,7 +60,17 @@ if ($method === 'GET') {
         $stmt->execute();
         $summary = $stmt->fetch(PDO::FETCH_ASSOC);
     
-        $stmtGender = $db->prepare("SELECT gender as name, COUNT(*) as value FROM users GROUP BY gender");
+        $stmtGender = $db->prepare("SELECT 
+        CASE 
+            WHEN gender = 'ชาย' THEN 'ชาย'
+            WHEN gender = 'หญิง' THEN 'หญิง'
+            WHEN gender IN ('อื่นๆ', 'Other') THEN 'อื่นๆ'
+            ELSE 'ไม่ระบุ' 
+        END as name, 
+        COUNT(*) as value 
+        FROM users 
+        GROUP BY name");
+        
         $stmtGender->execute();
         $genderData = $stmtGender->fetchAll(PDO::FETCH_ASSOC);
     
