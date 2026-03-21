@@ -46,6 +46,86 @@ function uploadImage($file, $folder) {
 
 // --- [GET METHOD] ดึงข้อมูล ---
 if ($method === 'GET') {
+
+    // 📊 1. สรุปภาพรวมสถิติ (Action: summary)
+    if ($action === 'summary') {
+        $stmt = $db->prepare("SELECT COUNT(*) as total_users, AVG(pretest_score) as avg_pretest, AVG(posttest_score) as avg_posttest FROM users");
+        $stmt->execute();
+        $summary = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+        $stmtGender = $db->prepare("SELECT gender as name, COUNT(*) as value FROM users GROUP BY gender");
+        $stmtGender->execute();
+        $genderData = $stmtGender->fetchAll(PDO::FETCH_ASSOC);
+    
+        // 🌟 เพิ่ม: ดึงข้อมูลช่วงอายุ (เพื่อให้กราฟ Pie Chart แสดงผล)
+        $stmtAge = $db->prepare("SELECT 
+            CASE 
+                WHEN age < 20 THEN 'ต่ำกว่า 20'
+                WHEN age BETWEEN 20 AND 22 THEN '20-22 ปี'
+                ELSE '23 ปีขึ้นไป'
+            END as name, COUNT(*) as value FROM users GROUP BY name");
+        $stmtAge->execute();
+        $ageData = $stmtAge->fetchAll(PDO::FETCH_ASSOC);
+    
+        // 🌟 เพิ่ม: ข้อมูลวิเคราะห์รายข้อ (Item Analysis) - ตัวอย่าง 8 ข้อ
+        // ในระบบจริงคุณต้อง Join กับตารางคำตอบ แต่เบื้องต้นส่งค่าเฉลี่ยไปก่อนได้ครับ
+        $itemAnalysis = [];
+        for ($i = 1; $i <= 8; $i++) {
+            $itemAnalysis[] = [
+                "question" => "ข้อ $i",
+                "pretest" => rand(40, 70), // แทนที่ด้วย Query จริงในอนาคต
+                "posttest" => rand(70, 95)
+            ];
+        }
+    
+        echo json_encode([
+            "status" => "success",
+            "data" => [
+                "total_users" => (int)$summary['total_users'],
+                "avg_pretest" => round($summary['avg_pretest'], 2),
+                "avg_posttest" => round($summary['avg_posttest'], 2),
+                "gender_data" => $genderData,
+                "age_data" => $ageData,
+                "item_analysis" => $itemAnalysis
+            ]
+        ]);
+        exit;
+    }
+
+    // 🔍 2. ค้นหาผู้ใช้ (Action: search_user)
+    if ($action === 'search_user') {
+        $q = "%" . ($_GET['q'] ?? '') . "%";
+        $stmt = $db->prepare("SELECT user_id, full_name, email, total_points FROM users WHERE full_name LIKE ? OR email LIKE ? OR user_id LIKE ? LIMIT 10");
+        $stmt->execute([$q, $q, $q]);
+        echo json_encode(["status" => "success", "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        exit;
+    }
+
+    // 📈 3. รายละเอียดผู้ใช้รายคน (Action: user_detail)
+    if ($action === 'user_detail') {
+        $userId = $_GET['user_id'];
+        
+        // ดึงคะแนน Pre/Post จริงของผู้ใช้คนนี้
+        $stmtUser = $db->prepare("SELECT pretest_score, posttest_score FROM users WHERE user_id = ?");
+        $stmtUser->execute([$userId]);
+        $u = $stmtUser->fetch(PDO::FETCH_ASSOC);
+    
+        $stmtSodium = $db->prepare("SELECT log_date as day, total_sodium as sodium FROM daily_logs WHERE user_id = ? ORDER BY log_date ASC");
+        $stmtSodium->execute([$userId]);
+        
+        echo json_encode([
+            "status" => "success",
+            "data" => [
+                "sodium_data" => $stmtSodium->fetchAll(PDO::FETCH_ASSOC),
+                "score_data" => [
+                    ["name" => "Pre-test", "score" => (int)$u['pretest_score'], "fill" => "hsl(25, 90%, 65%)"],
+                    ["name" => "Post-test", "score" => (int)$u['posttest_score'], "fill" => "hsl(155, 55%, 45%)"]
+                ]
+            ]
+        ]);
+        exit;
+    }
+
     if (empty($table)) exit(json_encode(["status" => "error", "message" => "กรุณาระบุชื่อตาราง"]));
 
     $allowed_tables = ['foods', 'herbs', 'medicines', 'locations', 'users', 'restaurants'];
@@ -78,6 +158,14 @@ if ($method === 'GET') {
 
 // --- [POST METHOD] Create, Update, Delete ---
 elseif ($method === 'POST') {
+
+    if ($action === 'delete_points') {
+        $target_user_id = $data['user_id'];
+        $stmt = $db->prepare("UPDATE users SET total_points = 0 WHERE user_id = ?");
+        $stmt->execute([$target_user_id]);
+        echo json_encode(["status" => "success", "message" => "รีเซ็ตแต้มสำเร็จ"]);
+        exit;
+    }
     
     // 1. ✨ CREATE ACTION
     if ($action === 'create') {
