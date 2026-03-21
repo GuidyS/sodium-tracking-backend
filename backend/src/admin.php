@@ -257,29 +257,63 @@ elseif ($method === 'POST') {
     // 3. 🗑️ DELETE ACTION
     elseif ($action === 'delete') {
         if (!$id) exit(json_encode(["status" => "error", "message" => "Missing ID"]));
-
-        if ($table === 'foods') {
-            $id_col = 'food_id'; $img_col = 'food_image'; $folder = 'foods';
-        } elseif ($table === 'herbs' || $table === 'medicines') {
-            $id_col = ($table === 'herbs') ? 'herb_id' : 'med_id';
-            $img_col = 'image_path'; $folder = 'med-herb'; //
-        } else {
-            $id_col = ($table === 'users') ? 'user_id' : $table . '_id';
+    
+        try {
+            $db->beginTransaction(); // 🌟 เริ่ม Transaction เพื่อความปลอดภัย
+            $id_col = '';
             $img_col = null;
-        }
-
-        if ($img_col) {
-            $stmt_file = $db->prepare("SELECT $img_col FROM $table WHERE $id_col = ?");
-            $stmt_file->execute([$id]);
-            $file_name = $stmt_file->fetchColumn();
-            if ($file_name && $file_name !== 'default-food.png') {
-                $file_path = "../frontend/public/$folder/" . $file_name; // ✨ ลบรูปจากพาร์ทใหม่
-                if (file_exists($file_path)) @unlink($file_path);
+            $folder = '';
+            $msg = "ลบข้อมูลเรียบร้อย";
+    
+            if ($table === 'locations') {
+                // ลอจิกข้อ 1: ลบอาหารที่ผูกกับสถานที่นี้ก่อน
+                $stmt1 = $db->prepare("DELETE FROM foods WHERE location_id = ?");
+                $stmt1->execute([$id]);
+                $id_col = 'location_id';
+            } 
+            elseif ($table === 'users') {
+                // ลอจิกข้อ 2: ลบ Logs เมื่อลบ User
+                $stmt1 = $db->prepare("DELETE li FROM log_items li JOIN daily_logs dl ON li.log_id = dl.log_id WHERE dl.user_id = ?");
+                $stmt1->execute([$id]);
+                $stmt2 = $db->prepare("DELETE FROM daily_logs WHERE user_id = ?");
+                $stmt2->execute([$id]);
+                $id_col = 'user_id';
+                $msg = "ลบผู้ใช้และประวัติทั้งหมดเรียบร้อย";
+            } 
+            elseif ($table === 'foods') {
+                $id_col = 'food_id'; $img_col = 'food_image'; $folder = 'foods';
+            } 
+            elseif ($table === 'herbs' || $table === 'medicines') {
+                $id_col = ($table === 'herbs') ? 'herb_id' : 'med_id';
+                $img_col = 'image_path'; $folder = 'med-herb';
+            } 
+            else {
+                $id_col = $table . '_id';
             }
+    
+            // 🖼️ จัดการลบไฟล์รูปภาพ (ถ้ามี)
+            if ($img_col) {
+                $stmt_file = $db->prepare("SELECT $img_col FROM $table WHERE $id_col = ?");
+                $stmt_file->execute([$id]);
+                $file_name = $stmt_file->fetchColumn();
+                if ($file_name && $file_name !== 'default-food.png') {
+                    $file_path = "../frontend/public/$folder/" . $file_name;
+                    if (file_exists($file_path)) @unlink($file_path);
+                }
+            }
+    
+            // 🗑️ ลบข้อมูลหลักในตารางนั้นๆ
+            $stmt = $db->prepare("DELETE FROM $table WHERE $id_col = ?");
+            $stmt->execute([$id]);
+    
+            $db->commit(); // ✅ ยืนยันการลบทั้งหมด
+            echo json_encode(["status" => "success", "message" => $msg]);
+    
+        } catch (Exception $e) {
+            $db->rollBack(); // ❌ ยกเลิกถ้าเกิด Error
+            http_response_code(500);
+            echo json_encode(["status" => "error", "message" => $e->getMessage()]);
         }
-
-        $stmt = $db->prepare("DELETE FROM $table WHERE $id_col = ?");
-        $stmt->execute([$id]);
-        echo json_encode(["status" => "success", "message" => "ลบข้อมูลและไฟล์เรียบร้อย"]);
+        exit;
     }
 }
