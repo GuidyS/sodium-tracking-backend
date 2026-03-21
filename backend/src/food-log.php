@@ -151,6 +151,7 @@ elseif ($method === 'POST') {
     elseif ($action === 'submit_test') {
         $test_type = $data['test_type'] ?? ''; 
         $score = $data['score'] ?? 0;
+        $results = $data['results'] ?? [];
         
         $col_done  = ($test_type === 'post') ? 'posttest_done' : 'pretest_done';
         $col_score = ($test_type === 'post') ? 'posttest_score' : 'pretest_score';
@@ -179,12 +180,16 @@ elseif ($method === 'POST') {
             $done_status = $stmt->fetchColumn();
 
             if ($done_status == 0) {
+                // 1. อัปเดตคะแนนรวมในตาราง users
                 $stmt = $db->prepare("UPDATE users SET $col_done = 1, $col_score = :score, total_points = total_points + 1, last_point_date = NOW(), updated_at = NOW() WHERE user_id = :uid");
                 $stmt->execute([':score' => $score, ':uid' => $user_id]);
-
+    
+                // 2. บันทึกรายละเอียดรายข้อลงตาราง test_responses
                 if (!empty($results)) {
+                    // เตรียมคำสั่ง SQL ล่วงหน้าเพื่อประสิทธิภาพ
                     $stmtRes = $db->prepare("INSERT INTO test_responses (user_id, test_type, question_number, is_correct) VALUES (?, ?, ?, ?)");
                     foreach ($results as $res) {
+                        // $res['q'] คือข้อที่, $res['correct'] คือ 1 หรือ 0
                         $stmtRes->execute([$user_id, $test_type, $res['q'], $res['correct']]);
                     }
                 }
