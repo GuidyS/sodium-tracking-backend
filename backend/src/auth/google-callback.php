@@ -1,15 +1,13 @@
 <?php
-
 ob_start();
-
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT & ~E_NOTICE);
 ini_set('display_errors', 0);
 
-require_once __DIR__ . '/../config/config.php'; // ถอยออกไป 1 ชั้นเพื่อหา config
-require_once __DIR__ . '/../vendor/autoload.php'; // ถอยออกไป 1 ชั้นเพื่อหา vendor
+require_once __DIR__ . '/../config/config.php'; 
+require_once __DIR__ . '/../vendor/autoload.php'; 
 
 try {
-    $db = new Connect(); // ใช้ class Connect เหมือนใน login.php
+    $db = new Connect(); 
     $client = new Google_Client();
     $client->setClientId(GOOGLE_CLIENT_ID);
     $client->setClientSecret(GOOGLE_CLIENT_SECRET);
@@ -18,10 +16,8 @@ try {
     $client->addScope("profile");
 
     if(!isset($_GET['code'])) {
-        // เพื่อให้ระบบวิ่งไปหา Google ทุกครั้งที่กดปุ่ม
         header("Location: " . filter_var($client->createAuthUrl(), FILTER_SANITIZE_URL));
         exit;
-
     } else {
         $client->authenticate($_GET['code']);
         $token = $client->getAccessToken();
@@ -35,38 +31,42 @@ try {
         $stmt->execute([':google_id' => $userInfo->id, ':email' => $userInfo->email]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
+        // 🌟 แก้ไขตรรกะการแยกผู้ใช้ใหม่/เก่า
         if(!$user) {
-            // สำหรับผู้ใช้ใหม่
-            $stmt = $db->prepare("INSERT INTO users (google_id, full_name, email, user_role) VALUES (:google_id, :name, :email, 'บุคคลทั่วไป')");
+            // 1. ลอจิกสำหรับผู้ใช้ใหม่
+            // เปลี่ยนจาก 'admin' เป็น 'Admin' เพื่อให้ตรงกับ React
+            $role = ($userInfo->email === 'desaltdena@gmail.com') ? 'admin' : 'บุคคลทั่วไป';
+        
+            $stmt = $db->prepare("INSERT INTO users (google_id, full_name, email, user_role) VALUES (:google_id, :name, :email, :role)");
             $stmt->execute([
                 ':google_id' => $userInfo->id,
                 ':name' => $userInfo->name,
-                ':email' => $userInfo->email
+                ':email' => $userInfo->email,
+                ':role' => $role
             ]);
             $userId = $db->lastInsertId();
-            $userRole = 'บุคคลทั่วไป';
+            $userRole = $role;
         } else {
-            // สำหรับผู้ใช้เดิม
+            // 2. ลอจิกสำหรับผู้ใช้เดิม
             $userId = $user['user_id'];
             $userRole = $user['user_role'];
         }
 
+        // 🌟 ส่วนนี้ต้องอยู่นอก if-else เพื่อให้ทั้ง user ใหม่และเก่าทำงานได้
         $_SESSION['user_id'] = $userId;
         $_SESSION['user_role'] = $userRole;
 
         $userData = urlencode(json_encode([
-            "user_id" => $userId,
+            "user_id" => (int)$userId,
             "full_name" => $userInfo->name,
             "email" => $userInfo->email,
             "user_role" => $userRole
         ]));
 
-        // ✅ เปลี่ยนจาก localhost เป็น Vercel URL
         header("Location: https://sodiumtracking.vercel.app/splash?user=" . $userData);
         exit;
     }
 } catch (Exception $e) {
-    // ใน production แนะนำให้ส่งกลับไปหน้า login พร้อม error message
     header("Location: https://sodiumtracking.vercel.app/login?error=" . urlencode($e->getMessage()));
     exit;
 }
