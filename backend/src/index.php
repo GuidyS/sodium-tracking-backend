@@ -109,6 +109,10 @@ switch ($page) {
     case 'medicine-info':
         require_once 'medicine-info.php';
         break;
+
+    case 'admin':
+        require_once 'admin.php';
+        break;
         
     default:
         http_response_code(404);
