@@ -1,7 +1,17 @@
 <?php
-// admin.php
+
+session_start(); // มั่นใจว่ามี session_start เพื่อเช็คบทบาท
 require_once './config/config.php';
 $db = new Connect();
+
+$user_role = $_SESSION['user_role'] ?? '';
+
+// 🌟 ตรวจสอบว่าถ้าไม่ใช่ Admin ให้เด้งออกทันที
+if ($user_role !== 'admin') {
+    http_response_code(403);
+    echo json_encode(["status" => "error", "message" => "Access Denied: Admin only"]);
+    exit;
+}
 
 // รับข้อมูลจาก Frontend
 $rawData = file_get_contents("php://input");
