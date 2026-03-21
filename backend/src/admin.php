@@ -62,9 +62,13 @@ function uploadImage($file, $folder) {
     if (!isset($file) || $file['error'] !== UPLOAD_ERR_OK) return null;
     $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
     $fileName = uniqid() . '.' . $ext;
-    $targetPath = "./uploads/" . $folder . "/" . $fileName;
     
-    if (!is_dir("./uploads/" . $folder)) mkdir("./uploads/" . $folder, 0777, true);
+    // ✨ เปลี่ยนพาร์ทให้ถอยออกไปหาโฟลเดอร์ frontend/public
+    $targetDir = "../frontend/public/" . $folder . "/"; 
+    $targetPath = $targetDir . $fileName;
+    
+    // สร้างโฟลเดอร์อัตโนมัติหากยังไม่มี
+    if (!is_dir($targetDir)) mkdir($targetDir, 0777, true);
     
     if (move_uploaded_file($file['tmp_name'], $targetPath)) {
         return $fileName;
