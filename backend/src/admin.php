@@ -1,6 +1,5 @@
 <?php
 
-session_start(); // มั่นใจว่ามี session_start เพื่อเช็คบทบาท
 require_once './config/config.php';
 $db = new Connect();
 
