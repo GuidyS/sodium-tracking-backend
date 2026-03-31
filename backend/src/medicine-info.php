@@ -15,7 +15,11 @@ try {
 
     // ถอดรหัส JSON content ของทั้งยาและสมุนไพร
     foreach ($medicines as &$m) {
-        $m['content'] = json_decode($m['content'], true);
+        $content = json_decode($m['content'], true);
+        // สร้าง Key กลาง (detail, warning) โดยเช็คทั้งไทยและอังกฤษ
+        $m['display_detail'] = $content['detail'] ?? $content['ข้อบ่งใช้หลัก'] ?? '';
+        $m['display_warning'] = $content['warning'] ?? $content['อาการเตือนที่ควรหยุดยา'] ?? '';
+        $m['content'] = $content; // เก็บของเดิมไว้เผื่อหน้า User ยังเรียกใช้
     }
     foreach ($herbs as &$h) {
         $h['content'] = json_decode($h['content'], true);
