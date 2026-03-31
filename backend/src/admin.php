@@ -39,8 +39,8 @@ function uploadImage($file, $folder) {
     $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
     $fileName = uniqid() . '.' . $ext;
     
-    // ✨ ชี้ไปที่โฟลเดอร์ public ของ frontend
-    $targetDir = "../frontend/public/" . $folder . "/"; 
+    // 🌟 เปลี่ยนมาใช้ DOCUMENT_ROOT เพื่อให้มั่นใจว่าไฟล์ไปอยู่ในโฟลเดอร์ที่เปิดดูผ่านเว็บได้แน่นอน
+    $targetDir = $_SERVER['DOCUMENT_ROOT'] . "/" . $folder . "/"; 
     $targetPath = $targetDir . $fileName;
     
     if (!is_dir($targetDir)) mkdir($targetDir, 0777, true);
