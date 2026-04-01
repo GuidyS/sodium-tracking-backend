@@ -166,7 +166,7 @@ elseif ($method === 'POST') {
         if ($test_type === 'post') {
             $today = date('Y-m-d H:i:s');
             $start = "2026-03-18 00:00:00";
-            $end   = "2026-03-31 23:59:59";
+            $end   = "2026-03-05 23:59:59";
             if ($today < $start || $today > $end) {
                 echo json_encode(["status" => "error", "message" => "ไม่อยู่ในกำหนดเวลาทำ Post-test"]);
                 exit;
